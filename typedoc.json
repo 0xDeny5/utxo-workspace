@@ -1,0 +1,12 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "utxo-coinselect",
+  "entryPoints": ["packages/core/src/index.ts"],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "packages/core/tsconfig.json",
+  "readme": "packages/core/README.md",
+  "out": "docs/api",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "includeVersion": true
+}

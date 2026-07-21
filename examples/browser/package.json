@@ -1,0 +1,14 @@
+{
+  "name": "utxo-coinselect-example-browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "utxo-coinselect": "workspace:^"
+  },
+  "devDependencies": {}
+}

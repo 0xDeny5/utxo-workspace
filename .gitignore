@@ -1,0 +1,36 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tgz
+
+# Test and quality tooling
+coverage/
+.stryker-tmp/
+reports/
+.vite/
+.turbo/
+
+# Generated API docs (run `pnpm run docs` locally)
+docs/api/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# TypeScript incremental
+*.tsbuildinfo
+
+# Environment and logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*

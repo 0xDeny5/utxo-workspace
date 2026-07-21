@@ -1,0 +1,59 @@
+{
+  "name": "utxo-coinselect",
+  "version": "0.1.0",
+  "description": "Dependency-free, weight-aware Bitcoin UTXO coin selection",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./strategies": {
+      "types": "./dist/strategies.d.ts",
+      "import": "./dist/strategies.js",
+      "require": "./dist/strategies.cjs"
+    },
+    "./weights": {
+      "types": "./dist/weights.d.ts",
+      "import": "./dist/weights.js",
+      "require": "./dist/weights.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "coverage": "vitest run --coverage",
+    "mutation": "stryker run",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "utxo-coinselect",
+    "bitcoin",
+    "coin-selection",
+    "coinselect",
+    "utxo",
+    "branch-and-bound",
+    "taproot",
+    "segwit",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
+    "vitest": "^4.1.10"
+  }
+}

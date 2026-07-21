@@ -1,0 +1,514 @@
+{
+  "$schema": "./schema.json",
+  "weights": [
+    {
+      "name": "P2WPKH",
+      "inputType": "p2wpkh",
+      "expectedWeight": 272
+    },
+    {
+      "name": "Taproot key path",
+      "inputType": "p2tr",
+      "expectedWeight": 230
+    },
+    {
+      "name": "P2WSH 2-of-3",
+      "inputType": {
+        "type": "p2wsh-multisig",
+        "m": 2,
+        "n": 3
+      },
+      "expectedWeight": 420
+    }
+  ],
+  "selections": [
+    {
+      "name": "Branch-and-Bound exact effective match",
+      "strategy": "branch-and-bound",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "exact",
+          "vout": 0,
+          "value": "1110",
+          "weight": 272
+        },
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "exact", "vout": 0 }],
+        "fee": "110",
+        "change": "0",
+        "weight": 438,
+        "strategy": "branch-and-bound"
+      }
+    },
+    {
+      "name": "Largest-first with P2WPKH change",
+      "strategy": "largest-first",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        },
+        {
+          "txid": "small",
+          "vout": 0,
+          "value": "1500",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "large", "vout": 0 }],
+        "fee": "141",
+        "change": "3859",
+        "weight": 562,
+        "strategy": "largest-first"
+      }
+    },
+    {
+      "name": "Blackjack changeless exact match",
+      "strategy": "blackjack",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "exact",
+          "vout": 0,
+          "value": "1110",
+          "weight": 272
+        },
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "exact", "vout": 0 }],
+        "fee": "110",
+        "change": "0",
+        "weight": 438,
+        "strategy": "blackjack"
+      }
+    },
+    {
+      "name": "Accumulative multi-input with change",
+      "strategy": "accumulative",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "a",
+          "vout": 0,
+          "value": "800",
+          "weight": 272
+        },
+        {
+          "txid": "b",
+          "vout": 0,
+          "value": "800",
+          "weight": 272
+        },
+        {
+          "txid": "c",
+          "vout": 0,
+          "value": "800",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [
+          { "txid": "a", "vout": 0 },
+          { "txid": "b", "vout": 0 }
+        ],
+        "fee": "209",
+        "change": "391",
+        "weight": 834,
+        "strategy": "accumulative"
+      }
+    },
+    {
+      "name": "CoinGrinder prefers lighter input weight",
+      "strategy": "coingrinder",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "heavy",
+          "vout": 0,
+          "value": "2000",
+          "weight": 592
+        },
+        {
+          "txid": "light",
+          "vout": 0,
+          "value": "1300",
+          "weight": 230
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "light", "vout": 0 }],
+        "fee": "300",
+        "change": "0",
+        "weight": 396,
+        "strategy": "coingrinder"
+      }
+    },
+    {
+      "name": "Knapsack changeless with fixed seed",
+      "strategy": "knapsack",
+      "seed": 42,
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "a",
+          "vout": 0,
+          "value": "700",
+          "weight": 272
+        },
+        {
+          "txid": "b",
+          "vout": 0,
+          "value": "478",
+          "weight": 272
+        },
+        {
+          "txid": "c",
+          "vout": 0,
+          "value": "1500",
+          "weight": 272
+        },
+        {
+          "txid": "d",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [
+          { "txid": "a", "vout": 0 },
+          { "txid": "b", "vout": 0 }
+        ],
+        "fee": "178",
+        "change": "0",
+        "weight": 710,
+        "strategy": "knapsack"
+      }
+    },
+    {
+      "name": "Single Random Draw with fixed seed",
+      "strategy": "single-random-draw",
+      "seed": 42,
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "a",
+          "vout": 0,
+          "value": "700",
+          "weight": 272
+        },
+        {
+          "txid": "b",
+          "vout": 0,
+          "value": "1500",
+          "weight": 272
+        },
+        {
+          "txid": "c",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "c", "vout": 0 }],
+        "fee": "141",
+        "change": "3859",
+        "weight": 562,
+        "strategy": "single-random-draw"
+      }
+    },
+    {
+      "name": "Best meta-strategy prefers changeless Branch-and-Bound at low fees",
+      "strategy": "best",
+      "seed": 42,
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "exact",
+          "vout": 0,
+          "value": "1110",
+          "weight": 272
+        },
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "exact", "vout": 0 }],
+        "fee": "110",
+        "change": "0",
+        "weight": 438,
+        "strategy": "branch-and-bound"
+      }
+    },
+    {
+      "name": "Best meta-strategy at high fee rate with fixed seed",
+      "strategy": "best",
+      "seed": 42,
+      "feeRate": 50,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "a",
+          "vout": 0,
+          "value": "50000",
+          "weight": 272
+        },
+        {
+          "txid": "b",
+          "vout": 0,
+          "value": "50000",
+          "weight": 272
+        },
+        {
+          "txid": "c",
+          "vout": 0,
+          "value": "50000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "10000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "c", "vout": 0 }],
+        "fee": "7025",
+        "change": "32975",
+        "weight": 562,
+        "strategy": "knapsack"
+      }
+    },
+    {
+      "name": "Insufficient funds failure",
+      "strategy": "largest-first",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "tiny",
+          "vout": 0,
+          "value": "100",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": false,
+        "reason": "insufficient-funds"
+      }
+    },
+    {
+      "name": "Coin control force-includes a required UTXO",
+      "strategy": "largest-first",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "forced",
+          "vout": 0,
+          "value": "1500",
+          "weight": 272,
+          "required": true
+        },
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "forced", "vout": 0 }],
+        "fee": "141",
+        "change": "359",
+        "weight": 562,
+        "strategy": "largest-first"
+      }
+    },
+    {
+      "name": "Coin control skips an excluded UTXO",
+      "strategy": "largest-first",
+      "feeRate": 1,
+      "longTermFeeRate": 1,
+      "utxos": [
+        {
+          "txid": "large",
+          "vout": 0,
+          "value": "5000",
+          "weight": 272,
+          "excluded": true
+        },
+        {
+          "txid": "small",
+          "vout": 0,
+          "value": "2000",
+          "weight": 272
+        }
+      ],
+      "targets": [
+        {
+          "value": "1000",
+          "weight": 124
+        }
+      ],
+      "change": {
+        "outputWeight": 124,
+        "spendWeight": 272
+      },
+      "expected": {
+        "ok": true,
+        "inputs": [{ "txid": "small", "vout": 0 }],
+        "fee": "141",
+        "change": "859",
+        "weight": 562,
+        "strategy": "largest-first"
+      }
+    }
+  ]
+}

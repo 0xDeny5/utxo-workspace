@@ -1,0 +1,9 @@
+**/.stryker-tmp/
+**/.vite/
+**/coverage/
+**/dist/
+**/node_modules/
+**/reports/
+**/.idea/
+docs/api/
+pnpm-lock.yaml

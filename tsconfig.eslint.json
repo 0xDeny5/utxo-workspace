@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "utxo-coinselect": ["./packages/core/src/index.ts"],
+      "utxo-coinselect/strategies": ["./packages/core/src/strategies.ts"],
+      "utxo-coinselect/weights": ["./packages/core/src/weights.ts"]
+    }
+  },
+  "include": ["benchmarks/**/*.ts", "examples/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["**/.stryker-tmp/**", "**/coverage/**", "**/dist/**", "**/node_modules/**"]
+}

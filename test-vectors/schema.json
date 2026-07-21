@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://utxo-coinselect.dev/test-vectors/schema.json",
+  "title": "utxo-coinselect conformance vectors",
+  "type": "object",
+  "required": ["weights", "selections"],
+  "properties": {
+    "weights": {
+      "type": "array"
+    },
+    "selections": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}
