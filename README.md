@@ -246,78 +246,10 @@ Randomized strategies (`srd`, `knapsack`, and anything that uses them inside `be
 
 ## For contributors
 
-### Examples
-
-Runnable demos live under [examples/](examples/) — see [examples/README.md](examples/README.md)
-for what each one demonstrates and what to look for in the output.
-
-| Example      | Command                                                   | Shows                                               |
-| ------------ | --------------------------------------------------------- | --------------------------------------------------- |
-| Quick start  | `pnpm --filter utxo-coinselect-example-node start`        | Mixed scripts + `best` (fee / change / winner)      |
-| Coin control | `pnpm --filter utxo-coinselect-example-node coin-control` | `required` / `frozen` / `minConfirmations` + `meta` |
-| Send-all     | `pnpm --filter utxo-coinselect-example-node send-all`     | `split` empties the wallet (no change)              |
-| Compare      | `pnpm --filter utxo-coinselect-example-node strategies`   | Same wallet, many strategies' fee / waste           |
-| Browser      | `pnpm --filter utxo-coinselect-example-browser dev`       | Full JSON result in the browser                     |
-
-### Benchmarks
-
-Speed smoke-check against other JS libraries (not a fee-quality contest):
-
-```sh
-pnpm benchmark
-```
-
-The harness compares:
-
-- `utxo-coinselect` with `strategy: "best"` (meta-selector — intentionally heavier)
-- `utxo-coinselect` with `strategy: "accumulative"` (closer apples-to-apples vs legacy)
-- [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect)
-- [@bitcoinerlab/coinselect](https://github.com/bitcoinerlab/coinselect)
-
-Those competitor packages are **root devDependencies only**. They are never declared or bundled by `utxo-coinselect`.
-
-### Supported environments
-
-- Node.js 22 and 24 (CI matrix; library runtime still supports Node 20+)
-- Browsers and edge runtimes with ES2020 + `bigint`
-- ESM and CommonJS (`import` / `require`)
-- TypeScript 5.x declarations
-
-### Development
-
-```sh
-pnpm install
-pnpm check      # format + lint + types + tests + build
-pnpm coverage   # keep the coverage gate green
-pnpm mutation   # mutation testing for core
-pnpm size       # bundle size budget
-pnpm run docs   # generate TypeDoc into docs/api (gitignored)
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor checklist.
-
-### Versioning and releases
-
-- Semantic Versioning via [Changesets](https://github.com/changesets/changesets)
-- On every pull request and push to `main`, CI validates the tree; the Release workflow opens a version PR, and publishes to npm with provenance when changesets are ready and `NPM_TOKEN` is set
-
-Contributor:
-
-```sh
-pnpm changeset
-```
-
-Maintainer:
-
-```sh
-pnpm version-packages
-pnpm release
-```
-
-### Specification
-
-- Behavior contract: [spec/coin-selection.md](spec/coin-selection.md)
-- Conformance vectors: [test-vectors/](test-vectors/)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, quality gates, PRs, and releases.
+Runnable demos: [examples/](examples/) ([examples/README.md](examples/README.md)).
+Behavior contract: [spec/coin-selection.md](spec/coin-selection.md). Conformance vectors:
+[test-vectors/](test-vectors/).
 
 ## License
 

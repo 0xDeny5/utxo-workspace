@@ -65,15 +65,7 @@ fix(weights): correct P2WSH multisig witness estimate
 
 ## Documentation style
 
-Markdown spacing:
-
-- **One** blank line before each heading (except at the top of the file).
-- **One** blank line after each heading before body text, lists, or code fences.
-- **One** blank line before/after tables and fenced code blocks.
-- Do **not** use two or more consecutive blank lines — they only add empty space in previews.
-
-Rendered viewers (GitHub, IDE preview) still add their own margins around lists and headings; that is
-normal and is not fixed by inserting extra blank lines in the source.
+Match existing Markdown spacing (single blank lines around headings, tables, and fences; no double blanks).
 
 ## Requirements
 
