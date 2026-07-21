@@ -123,7 +123,3 @@ Publishing requires an `NPM_TOKEN` repository secret (Automation token) with
 publish rights. The first publish must use a token: npm trusted publishing (OIDC)
 can only be attached after `utxo-coinselect` already exists on the registry.
 Without `NPM_TOKEN`, Release still opens version PRs but skips `changeset publish`.
-
-Provenance (`NPM_CONFIG_PROVENANCE`) is disabled while this GitHub repository is
-private — npm only supports provenance from public repos. After making the repo
-public, you can re-enable it in `.github/workflows/release.yml`.

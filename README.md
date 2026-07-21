@@ -299,7 +299,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor checklist.
 ### Versioning and releases
 
 - Semantic Versioning via [Changesets](https://github.com/changesets/changesets)
-- On every pull request and push to `main`, CI validates the tree; the Release workflow opens a version PR, and publishes to npm with provenance when changesets are ready
+- On every pull request and push to `main`, CI validates the tree; the Release workflow opens a version PR, and publishes to npm with provenance when changesets are ready and `NPM_TOKEN` is set
 
 Contributor:
 

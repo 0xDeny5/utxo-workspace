@@ -31,8 +31,7 @@ jobs:
       - run: pnpm coverage
       # Publish only when NPM_TOKEN is set. Without it, changesets/action falls back to
       # npm OIDC trusted publishing, which cannot create a brand-new package (E404).
-      # Do not enable provenance while the GitHub repo is private — npm rejects it
-      # (often as a misleading E404). Re-enable NPM_CONFIG_PROVENANCE after going public.
+      # Provenance requires a public GitHub repo (this one is public).
       - name: Version or publish
         uses: changesets/action@v1
         with:
@@ -45,3 +44,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
