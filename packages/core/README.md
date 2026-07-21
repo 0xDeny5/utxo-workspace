@@ -318,9 +318,9 @@ Key-path spends use `inputWeight("p2tr")` — no `P2TR_SCRIPT`. Script-path spen
 
 Default is `"best"` (runs several algorithms, keeps lowest waste). Full list: `STRATEGY_NAMES`.
 
-Catalog and when to pick each: root workspace `README.md` (Strategies section).
+Catalog and when to pick each: [Strategies in the repo README](https://github.com/0xDeny5/utxo-coinselect#strategies).
 
 ## See also
 
-- Behavior contract: `spec/coin-selection.md`
-- Runnable demos: `examples/README.md`
+- Behavior contract: [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md)
+- Runnable demos: [examples/README.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/examples/README.md)

@@ -1,5 +1,11 @@
 # utxo-coinselect
 
+## 0.1.2
+
+### Patch Changes
+
+- Link npm README "See also" and Strategies to GitHub URLs so they work on npmjs.com.
+
 ## 0.1.1
 
 ### Patch Changes
