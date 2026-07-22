@@ -332,6 +332,20 @@ describe("coverage of strategy edge paths", () => {
     expect(metadata).toMatchObject({ ok: true });
   });
 
+  it("skips uneconomical optional inputs in deterministic accumulators", () => {
+    // High fee rate → tiny UTXO has non-positive effective value and must be skipped
+    // (strategies.ts accumulate loop), not selected ahead of a fundable coin.
+    const result = selectCoins({
+      ...makeRequest([coin("dust", 1n), coin("fund", 50_000n)], "largest-first"),
+      feeRate: 100,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      inputs: [{ txid: "fund", vout: 0 }],
+    });
+  });
+
   it("falls back from homogeneous script pools to a mixed selection", () => {
     const result = selectCoins({
       ...makeRequest(
