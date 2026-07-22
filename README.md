@@ -14,7 +14,7 @@ Modern, dependency-free Bitcoin UTXO coin selection engine for TypeScript.
 
 ## Motivation
 
-This package started from a concrete bug class in real wallets: fee estimates that assume every input costs about as much as a bare P2PKH spend. The de-facto JS helper, [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect), hardcodes that size whenever you omit an explicit script — so SegWit, Taproot, and especially multisig systematically misprice fees and change.
+Existing Typescript Coin Selection libraries often trade off between simplicity, accuracy, and algorithmic flexibility. This package was created to fill this gap: a standalone engine combining accurate UTXO weight estimation with wide variety of modern selection algorithms. For instance, [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect), hardcodes sizes of UTXOs (which affects the "cost") whenever you omit an explicit "script" field — so SegWit, Taproot, and especially multisig systematically misprice fees and change. In addition, it lacks a broad set of modern coin-selection strategies.
 
 Looking for a drop-in fix, the JS/TS landscape split awkwardly:
 
@@ -22,12 +22,12 @@ Looking for a drop-in fix, the JS/TS landscape split awkwardly:
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------- |
 | [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect)                | No — hardcodes roughly P2PKH input size + no TS support even | No — blackjack + accumulative            |
 | [@bitcoinerlab/coinselect](https://github.com/bitcoinerlab/coinselect)         | Yes                                                          | Mostly the same heuristics               |
-| [@scure/btc-signer](https://github.com/paulmillr/scure-btc-signer)             | Yes                                                          | Heuristic matrix; selection is unaudited |
+| [@scure/btc-signer](https://github.com/paulmillr/scure-btc-signer)             | Yes                                                          | Heuristic matrix                         |
 | [bdk_coin_select](https://docs.rs/bdk_coin_select) (Rust) / Bitcoin Core (C++) | Yes                                                          | Yes — but not a small pure-TS dependency |
 
-Core and BDK already solved the _algorithm_ side (Branch-and-Bound, waste metric, CoinGrinder, SRD, …). What was missing was that same engine as a **tiny, selection-only TypeScript library**: no keys, no PSBT, no WASM wallet stack — just UTXOs in, chosen inputs / change / fee / waste out, with callers supplying (or catalog-deriving) accurate per-input weights.
+Core and BDK already solved the _algorithm_ side (Branch-and-Bound, waste metric, CoinGrinder, SRD, ...). However, such libraries lack a **tiny, selection-only TypeScript library**: no keys, no PSBT, no WASM wallet stack — just UTXOs in, chosen inputs / change / fee / waste out, with callers supplying (or catalog-deriving) accurate per-input weights.
 
-So utxo-coinselect was written to fill that gap: **accurate weight modeling** (including M-of-N multisig and Taproot) **and** the modern Core/BDK-style algorithm suite, tree-shakeable and usable beside any transaction builder.
+So, **accurate weight modeling** brings this approach to TS: accurate weight modeling (including M-of-N multisig and Taproot) **and** the modern Core/BDK-style algorithm suite, tree-shakeable and usable beside any transaction builder.
 
 ## Install
 
