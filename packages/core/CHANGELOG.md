@@ -1,5 +1,11 @@
 # utxo-coinselect
 
+## 0.1.3
+
+### Patch Changes
+
+- Improve project motivation wording and harden coverage for uneconomical accumulator inputs.
+
 ## 0.1.2
 
 ### Patch Changes

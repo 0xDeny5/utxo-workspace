@@ -4,6 +4,10 @@ All notable changes will be documented here.
 
 The project follows Semantic Versioning and uses Changesets to prepare releases.
 
+## 0.1.3
+
+- Improve project motivation wording and harden coverage for uneconomical accumulator inputs.
+
 ## 0.1.2
 
 - Link npm README "See also" and Strategies to GitHub URLs so they work on npmjs.com.
