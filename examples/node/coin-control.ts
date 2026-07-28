@@ -1,7 +1,10 @@
 import { inputWeight, outputWeight, selectCoins } from "utxo-coinselect";
 
 /**
- * Coin-control demo: force one input, freeze another, and require confirmations.
+ * Coin-control demo:
+ * - required: user-picked input (always spent when selection succeeds)
+ * - excluded: do-not-spend coin (removed from the candidate pool)
+ * - minConfirmations: only affects optional coins
  */
 const result = selectCoins({
   utxos: [
@@ -19,7 +22,7 @@ const result = selectCoins({
       vout: 1,
       value: 500_000n,
       weight: inputWeight("p2wpkh"),
-      frozen: true,
+      excluded: true,
       confirmations: 100,
     },
     {

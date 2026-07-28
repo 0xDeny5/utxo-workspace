@@ -1,14 +1,14 @@
 {
-  "name": "utxo-coinselect",
-  "version": "0.1.3",
-  "description": "Dependency-free, weight-aware Bitcoin UTXO coin selection",
+  "name": "utxo-descriptors",
+  "version": "0.0.0",
+  "description": "Dependency-free Bitcoin output descriptor (BIP-380) parser and weight estimator",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/0xDeny5/utxo-workspace.git",
-    "directory": "packages/utxo-coinselect"
+    "directory": "packages/utxo-descriptors"
   },
   "publishConfig": {
     "access": "public"
@@ -25,10 +25,10 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./strategies": {
-      "types": "./dist/strategies.d.ts",
-      "import": "./dist/strategies.js",
-      "require": "./dist/strategies.cjs"
+    "./parse": {
+      "types": "./dist/parse.d.ts",
+      "import": "./dist/parse.js",
+      "require": "./dist/parse.cjs"
     },
     "./weights": {
       "types": "./dist/weights.d.ts",
@@ -49,12 +49,13 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "utxo-coinselect",
+    "utxo-descriptors",
     "bitcoin",
-    "coin-selection",
-    "coinselect",
+    "descriptor",
+    "output-descriptor",
+    "bip380",
+    "miniscript",
     "utxo",
-    "branch-and-bound",
     "taproot",
     "segwit",
     "typescript"

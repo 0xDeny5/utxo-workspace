@@ -67,6 +67,10 @@
     {
       "path": "packages/utxo-coinselect/dist/index.js",
       "limit": "20 kB"
+    },
+    {
+      "path": "packages/utxo-descriptors/dist/index.js",
+      "limit": "12 kB"
     }
   ]
 }

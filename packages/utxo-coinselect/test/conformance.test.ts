@@ -36,7 +36,6 @@ describe("language-neutral conformance vectors", () => {
           weight: number;
           required?: boolean;
           excluded?: boolean;
-          frozen?: boolean;
         } = {
           txid: coin.txid,
           vout: coin.vout,
@@ -50,10 +49,6 @@ describe("language-neutral conformance vectors", () => {
 
         if ("excluded" in coin && coin.excluded) {
           utxo.excluded = true;
-        }
-
-        if ("frozen" in coin && coin.frozen) {
-          utxo.frozen = true;
         }
 
         return utxo;

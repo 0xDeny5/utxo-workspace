@@ -111,7 +111,7 @@ state = state modulo 2^32
 ```
 
 1. The returned sample in `[0, 1)` is `state / 2^32` (unsigned 32-bit `state`).
-2. Fisher-Yates shuffle for `n` items visits indices `n-1 … 1` and swaps index `i` with
+2. Fisher-Yates shuffle for `n` items visits indices `n-1 ... 1` and swaps index `i` with
    `floor(random() * (i + 1))`.
 
 ### Split and break
@@ -126,8 +126,8 @@ Best runs a fixed shortlist and returns the minimum-waste success: Branch-and-Bo
 
 ## Coin control and privacy
 
-- Excluded and frozen candidates MUST NOT be selected.
-- Force-included candidates MUST be selected unless excluded or frozen.
+- Excluded candidates MUST NOT be selected.
+- Force-included candidates MUST be selected unless excluded.
 - Minimum-confirmation filtering applies to non-required candidates.
 - With avoid-partial-spends, candidates sharing a group are atomic.
 - With single-script-type preference, homogeneous selections are attempted before the mixed pool.

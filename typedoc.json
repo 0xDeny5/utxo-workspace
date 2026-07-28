@@ -1,10 +1,13 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "name": "utxo-workspace",
-  "entryPoints": ["packages/utxo-coinselect/src/index.ts"],
+  "entryPoints": [
+    "packages/utxo-coinselect/src/index.ts",
+    "packages/utxo-descriptors/src/index.ts"
+  ],
   "entryPointStrategy": "resolve",
-  "tsconfig": "packages/utxo-coinselect/tsconfig.json",
-  "readme": "packages/utxo-coinselect/README.md",
+  "tsconfig": "tsconfig.eslint.json",
+  "readme": "README.md",
   "out": "docs/api",
   "excludePrivate": true,
   "excludeInternal": true,

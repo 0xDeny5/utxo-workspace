@@ -98,7 +98,6 @@ export interface Utxo<T = unknown> {
   readonly scriptType?: string;
   readonly required?: boolean;
   readonly excluded?: boolean;
-  readonly frozen?: boolean;
   readonly meta?: T;
 }
 

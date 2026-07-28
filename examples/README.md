@@ -25,20 +25,20 @@ pnpm --filter utxo-coinselect-example-node strategies
 **What to look for in the log:** which outpoint(s) were chosen, `fee`, `change`, and
 `strategy` (the winner inside `best`, e.g. `knapsack` or `branch-and-bound`).
 
-### `coin-control` — force / freeze / confirmations (`node/coin-control.ts`)
+### `coin-control` — force / exclude / confirmations (`node/coin-control.ts`)
 
 **What it shows:** wallet coin-control flags, not “pick any cheap input.”
 
 Setup:
 
-| UTXO          | Flag / filter               | Role                                      |
-| ------------- | --------------------------- | ----------------------------------------- |
-| `must-spend`  | `required: true` + `meta`   | Must appear in `inputs`                   |
-| `frozen`      | `frozen: true` (huge value) | Never selected even though it is largest  |
-| `unconfirmed` | `confirmations: 0`          | Dropped by `minConfirmations: 1`          |
-| `available`   | confirmed                   | Extra funds to reach the `100_000` target |
+| UTXO          | Flag / filter                 | Role                                      |
+| ------------- | ----------------------------- | ----------------------------------------- |
+| `must-spend`  | `required: true` + `meta`     | Must appear in `inputs`                   |
+| `excluded`    | `excluded: true` (huge value) | Never selected even though it is largest  |
+| `unconfirmed` | `confirmations: 0`            | Dropped by `minConfirmations: 1`          |
+| `available`   | confirmed                     | Extra funds to reach the `100_000` target |
 
-**What to look for:** `inputs` should include `must-spend` and `available`, never `frozen` or
+**What to look for:** `inputs` should include `must-spend` and `available`, never `excluded` or
 `unconfirmed`. `meta` should echo `{ label: "forced" }` on the required coin.
 
 ### `send-all` — empty the wallet (`node/send-all.ts`)

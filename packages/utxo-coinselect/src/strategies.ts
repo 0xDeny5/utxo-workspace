@@ -99,7 +99,6 @@ function prepare<TUtxo, TTarget>(request: SelectionRequest<TUtxo, TTarget>): Pre
   const available = request.utxos.filter(
     (utxo) =>
       utxo.excluded !== true &&
-      utxo.frozen !== true &&
       (utxo.required === true || (utxo.confirmations ?? 0) >= minConfirmations),
   );
 

@@ -111,12 +111,6 @@ const result = selectCoins({
       group: "same-address",
       // optional — label for preferSingleScriptType (free-form string, not used for fee math)
       scriptType: "p2wpkh",
-      // optional — must be included (unless excluded/frozen)
-      required: false,
-      // optional — never select
-      excluded: false,
-      // optional — same as excluded (wallet “freeze”)
-      frozen: false,
       // optional — your data; echoed back on selected inputs
       meta: { label: "savings" },
     },
@@ -205,6 +199,8 @@ result.strategy; // strategy that produced this success
 
 ### Coin control
 
+Wallet-style input overrides: force specific coins into the transaction or keep others out of the pool.
+
 ```ts
 const result = selectCoins({
   utxos: [
@@ -213,7 +209,7 @@ const result = selectCoins({
       vout: 0,
       value: 40_000n,
       weight: inputWeight("p2wpkh"),
-      required: true, // force include
+      required: true, // user checked this coin — must appear in inputs
       confirmations: 6,
     },
     {
@@ -221,7 +217,7 @@ const result = selectCoins({
       vout: 1,
       value: 500_000n,
       weight: inputWeight("p2wpkh"),
-      frozen: true, // never select
+      excluded: true, // do not spend — removed from the pool even though it is largest
       confirmations: 100,
     },
     {
@@ -229,12 +225,12 @@ const result = selectCoins({
       vout: 2,
       value: 80_000n,
       weight: inputWeight("p2wpkh"),
-      confirmations: 3,
+      confirmations: 3, // optional coin — strategies may pick this to reach the target
     },
   ],
   targets: [{ value: 100_000n, weight: outputWeight("p2wpkh") }],
   feeRate: 4,
-  minConfirmations: 1, // optional — drops unconfirmed non-required coins
+  minConfirmations: 1, // drops unconfirmed optional coins; does not block required coins
   change: {
     outputWeight: outputWeight("p2wpkh"),
     spendWeight: inputWeight("p2wpkh"),
@@ -370,7 +366,7 @@ Key-path spends use `inputWeight("p2tr")` — no `P2TR_SCRIPT`. Script-path spen
 3. Change is created only when the leftover is above the dust threshold; otherwise the leftover is added to the miner fee (changeless).
 4. Candidates are compared with the **waste metric** (changeful vs changeless forms), so "better" means lower long-term fee cost, not only "first solution found".
 
-Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-coinselect/blob/main/test-vectors/).
+Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-workspace/tree/main/test-vectors/).
 
 ## Strategies
 
@@ -438,17 +434,48 @@ Randomized strategies (`srd`, `knapsack`, and anything that uses them inside `be
 
 ## Coin control and privacy
 
-| Option                            | Effect                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| `required: true` on a UTXO        | Must be included (unless excluded/frozen)                                 |
-| `excluded: true` / `frozen: true` | Never selected                                                            |
-| `minConfirmations`                | Skip non-required UTXOs below the threshold                               |
-| `avoidPartialSpends`              | UTXOs sharing `group` are selected atomically (output groups / APS-style) |
-| `preferSingleScriptType`          | Prefer a homogeneous `scriptType` set before mixing                       |
+Coin control lets a wallet override automatic selection: spend specific inputs, hide others from the algorithm, and apply privacy rules.
+
+**Defaults:** `required` and `excluded` are optional booleans. When omitted (or `false`), the UTXO is a normal optional coin — eligible for selection if it passes `minConfirmations` and is not `excluded: true`.
+
+### Force-spend (`required: true`)
+
+Use when the user (or your app) **must** spend a UTXO — the same idea as checking a coin in Bitcoin Core's coin-control UI.
+
+- Every `required` UTXO is included in `result.inputs` when selection succeeds.
+- Selection **starts** with the full required set. Strategies search **optional** coins only if more value is needed for targets + fee.
+- `required` UTXOs **ignore `minConfirmations`**, so a user-chosen unconfirmed coin can still be forced in.
+- If required coins alone cannot fund targets + fee, strategies add **optional** coins on top of the required set.
+- If required coins already fund the payment, no optional coins are added (selection stops with just the required inputs).
+- Do not set `required` on the same UTXO as `excluded: true`; excluded removes the coin from the pool entirely.
+
+### Do-not-spend (`excluded: true`)
+
+Use when a UTXO must **never** be selected: wallet "freeze coin", reserved balance, in-flight swap, simulation pass, etc.
+
+- The UTXO is removed **before** any strategy runs.
+- Map wallet "frozen" state to `excluded: true` at the boundary when building `utxos`.
+
+### How the flags interact
+
+| UTXO flags              | In candidate pool?                          | If selection succeeds                  |
+| ----------------------- | ------------------------------------------- | -------------------------------------- |
+| default (omit both)     | yes, if `confirmations >= minConfirmations` | selected only when a strategy needs it |
+| `required: true`        | yes (even when unconfirmed)                 | always in `result.inputs`              |
+| `excluded: true`        | no                                          | never selected                         |
+| `required` + `excluded` | no                                          | never selected (`excluded` wins)       |
+
+### Other privacy options
+
+| Option                   | Effect                                                                    |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `minConfirmations`       | Skip **optional** UTXOs below the threshold; does not apply to `required` |
+| `avoidPartialSpends`     | UTXOs sharing `group` are selected atomically (output groups / APS-style) |
+| `preferSingleScriptType` | Prefer a homogeneous `scriptType` set before mixing                       |
 
 `preferSingleScriptType` is inspired by Bitcoin Core discussions around keeping input script types uniform (see Core [#24584](https://github.com/bitcoin/bitcoin/pull/24584) lineage). Attach wallet metadata with `meta` rather than inventing ad-hoc top-level fields.
 
 ## See also
 
-- Behavior contract: [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md)
-- Runnable demos: [examples/README.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/examples/README.md)
+- Behavior contract: [spec/coin-selection.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/coin-selection.md)
+- Runnable demos: [examples/README.md](https://github.com/0xDeny5/utxo-workspace/blob/main/examples/README.md)

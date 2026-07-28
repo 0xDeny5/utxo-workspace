@@ -389,11 +389,10 @@ describe("selection strategies", () => {
     expect(selectCoins(highFee)).toMatchObject({ ok: true });
   });
 
-  it("applies required, excluded, frozen, and confirmation controls", () => {
+  it("applies required, excluded, and confirmation controls", () => {
     const coins = [
       utxo("required", 400n, { required: true }),
       utxo("excluded", 10_000n, { excluded: true }),
-      utxo("frozen", 10_000n, { frozen: true }),
       utxo("unconfirmed", 10_000n, { confirmations: 0 }),
       utxo("usable", 2_000n, { confirmations: 2 }),
     ];

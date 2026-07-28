@@ -13,9 +13,10 @@ This is a monorepo. Each package below is published and versioned independently 
 
 ## Packages
 
-| Package                                                 | npm                                                                                                               | Description                                                                          |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [`utxo-coinselect`](packages/utxo-coinselect/README.md) | [![utxo-coinselect](https://img.shields.io/npm/v/utxo-coinselect)](https://www.npmjs.com/package/utxo-coinselect) | Weight-aware coin selection (BnB, waste, CoinGrinder, SRD, compatibility strategies) |
+| Package                                                   | npm                                                                                                                  | Description                                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [`utxo-coinselect`](packages/utxo-coinselect/README.md)   | [![utxo-coinselect](https://img.shields.io/npm/v/utxo-coinselect)](https://www.npmjs.com/package/utxo-coinselect)    | Weight-aware coin selection (BnB, waste, CoinGrinder, SRD, compatibility strategies)                      |
+| [`utxo-descriptors`](packages/utxo-descriptors/README.md) | [![utxo-descriptors](https://img.shields.io/npm/v/utxo-descriptors)](https://www.npmjs.com/package/utxo-descriptors) | Zero-dependency BIP-380 output descriptor parser with weights that agree with `utxo-coinselect`'s catalog |
 
 Runnable demos live in [`examples/`](examples/). Normative behavior and golden tests live in [`spec/`](spec/) and [`test-vectors/`](test-vectors/).
 
