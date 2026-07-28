@@ -13,9 +13,9 @@ This is a monorepo. Each package below is published and versioned independently 
 
 ## Packages
 
-| Package                                                                                                                                  | npm                                                                | Docs                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| [`utxo-coinselect`](packages/utxo-coinselect) — weight-aware coin selection (BnB, waste, CoinGrinder, SRD, and compatibility strategies) | [`utxo-coinselect`](https://www.npmjs.com/package/utxo-coinselect) | [README](packages/utxo-coinselect/README.md) (install, motivation, API, examples) |
+| Package                                                                                                                              | npm                                                                                                               | Docs                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| [`utxo-coinselect`](packages/utxo-coinselect) — weight-aware coin selection (BnB, waste, CoinGrinder, SRD, compatibility strategies) | [![utxo-coinselect](https://img.shields.io/npm/v/utxo-coinselect)](https://www.npmjs.com/package/utxo-coinselect) | [README](packages/utxo-coinselect/README.md) |
 
 Runnable demos live in [`examples/`](examples/). Normative behavior and golden tests live in [`spec/`](spec/) and [`test-vectors/`](test-vectors/).
 
