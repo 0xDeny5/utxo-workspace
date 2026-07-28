@@ -4,22 +4,31 @@ Dependency-free, weight-aware Bitcoin UTXO coin selection for TypeScript.
 
 You pass UTXOs, payment targets, and a fee rate; you get selected inputs, outputs (including optional change), fee, and a waste score. No keys, PSBTs, or wallet sync.
 
-```sh
-pnpm add utxo-coinselect
-```
-
 ## Table of contents
 
+- [Install](#install)
 - [Motivation](#motivation)
 - [Quick start](#quick-start)
-- [Full `selectCoins` request](#full-selectcoins-request-every-option)
+- [Full selectCoins request](#full-selectcoins-request-every-option)
 - [Result shape](#result-shape)
-- [More examples](#more-examples)
+- [Examples](#examples)
 - [Weights](#weights)
 - [How selection works](#how-selection-works)
 - [Strategies](#strategies)
 - [Coin control and privacy](#coin-control-and-privacy)
 - [See also](#see-also)
+
+## Install
+
+```sh
+pnpm add utxo-coinselect
+# or
+npm install utxo-coinselect
+# or
+yarn add utxo-coinselect
+```
+
+Requirements: **Node.js 20+**, or any runtime with ES2020 and `bigint` (modern browsers, edge workers).
 
 ## Motivation
 
@@ -192,7 +201,7 @@ result.weight; // final transaction weight (WU)
 result.strategy; // strategy that produced this success
 ```
 
-## More examples
+## Examples
 
 ### Coin control
 
