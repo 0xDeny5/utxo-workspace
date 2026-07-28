@@ -3,9 +3,9 @@
   "compilerOptions": {
     "noEmit": true,
     "paths": {
-      "utxo-coinselect": ["./packages/core/src/index.ts"],
-      "utxo-coinselect/strategies": ["./packages/core/src/strategies.ts"],
-      "utxo-coinselect/weights": ["./packages/core/src/weights.ts"]
+      "utxo-coinselect": ["./packages/utxo-coinselect/src/index.ts"],
+      "utxo-coinselect/strategies": ["./packages/utxo-coinselect/src/strategies.ts"],
+      "utxo-coinselect/weights": ["./packages/utxo-coinselect/src/weights.ts"]
     }
   },
   "include": ["benchmarks/**/*.ts", "examples/**/*.ts", "packages/**/*.ts"],

@@ -19,7 +19,7 @@ import {
   selectCoins,
   type SelectionRequest,
   type Utxo,
-} from "../packages/core/src";
+} from "../packages/utxo-coinselect/src";
 
 const UTXO_COUNT = 100;
 const TARGET_VALUE = 500_000;

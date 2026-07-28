@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve utxo-coinselect.
+Thanks for helping improve this workspace.
 
 ## Development setup
 
@@ -28,30 +28,32 @@ pnpm mutation
 
 ## Repository layout
 
-| Path             | Role                                                                          |
-| ---------------- | ----------------------------------------------------------------------------- |
-| `packages/core/` | Published library (`utxo-coinselect`) — selection engine + weights            |
-| `examples/`      | Runnable Node/browser demos                                                   |
-| `spec/`          | Language-neutral behavior contract                                            |
-| `test-vectors/`  | Golden cases for ports — see [test-vectors/README.md](test-vectors/README.md) |
-| `benchmarks/`    | Throughput comparison harness (dev-only competitor deps)                      |
+| Path            | Role                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------ |
+| `packages/*`    | Published libraries, one directory per npm package (e.g. `packages/utxo-coinselect/`)      |
+| `examples/`     | Runnable Node/browser demos                                                                |
+| `spec/`         | Language-neutral behavior contracts, one per package                                       |
+| `test-vectors/` | Golden cases shared across packages — see [test-vectors/README.md](test-vectors/README.md) |
+| `benchmarks/`   | Throughput comparison harness (dev-only competitor deps)                                   |
 
 ## Local quality gates
 
 | Command          | Purpose                                              |
 | ---------------- | ---------------------------------------------------- |
-| `pnpm check`     | Format, lint, typecheck, tests, build                |
-| `pnpm coverage`  | Coverage thresholds for core                         |
-| `pnpm mutation`  | Mutation testing for core                            |
-| `pnpm size`      | Published bundle size budget                         |
+| `pnpm check`     | Format, lint, typecheck, tests, build (all packages) |
+| `pnpm coverage`  | Coverage thresholds, run per package                 |
+| `pnpm mutation`  | Mutation testing, run per package                    |
+| `pnpm size`      | Published bundle size budget, per package            |
 | `pnpm run docs`  | Generate local TypeDoc into `docs/api/` (gitignored) |
 | `pnpm benchmark` | Compare selection throughput vs other JS libs        |
+
+Each package versions and releases independently (see below). A change to one package's source must not carry a changeset for a different, unaffected package. Every published package in this workspace stays free of runtime dependencies.
 
 Husky runs Prettier + ESLint on staged files before each commit. Commit messages must follow
 [Conventional Commits](https://www.conventionalcommits.org/), for example:
 
 ```text
-feat(core): prefer changeless Branch-and-Bound solutions
+feat(coinselect): prefer changeless Branch-and-Bound solutions
 fix(weights): correct P2WSH multisig witness estimate
 ```
 
@@ -69,14 +71,13 @@ Match existing Markdown spacing (single blank lines around headings, tables, and
 
 ## Requirements
 
-- Keep `utxo-coinselect` free of runtime dependencies.
+- Keep every published package free of runtime dependencies.
 - Use `bigint` for every satoshi amount.
 - Document public APIs with TSDoc.
 - Add unit, property, and/or conformance coverage for changed behavior.
 - Keep the coverage gate green (`pnpm coverage`).
 - Keep randomized strategies reproducible with an explicit `seed`.
-- Update [spec/coin-selection.md](spec/coin-selection.md) and `test-vectors/` when algorithm
-  behavior changes.
+- Update the relevant `spec/*.md` file and `test-vectors/` when normative behavior changes.
 
 ## Versioning and releases
 

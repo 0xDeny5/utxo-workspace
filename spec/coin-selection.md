@@ -143,7 +143,7 @@ Implementations return a discriminated result. Stable failure reasons are:
 
 ## Conformance
 
-`test-vectors/core.json` is normative for exact weights and selection outputs (including failure cases). Implementations in other languages should:
+`test-vectors/weights.json` and `test-vectors/coin-selection.json` are normative for exact weights and selection outputs (including failure cases). Implementations in other languages should:
 
 - Parse satoshi amounts from decimal strings.
 - Honor optional `seed` for randomized strategies (`knapsack`, `single-random-draw`, and `best` when it falls back to them) using the [PRNG contract](#prng-contract) above.
