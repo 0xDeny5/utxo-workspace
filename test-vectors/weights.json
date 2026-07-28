@@ -4,12 +4,14 @@
     {
       "name": "P2WPKH",
       "inputType": "p2wpkh",
-      "expectedWeight": 272
+      "expectedWeight": 272,
+      "descriptor": "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)"
     },
     {
       "name": "Taproot key path",
       "inputType": "p2tr",
-      "expectedWeight": 230
+      "expectedWeight": 230,
+      "descriptor": "tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729)"
     },
     {
       "name": "P2WSH 2-of-3",
@@ -18,7 +20,36 @@
         "m": 2,
         "n": 3
       },
-      "expectedWeight": 420
+      "expectedWeight": 420,
+      "descriptor": "wsh(multi(2,02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867,024cfa088a9723691a28758550648d756aebe1bbd9a4c3d771bc353541ae762a66))"
+    },
+    {
+      "name": "P2PK",
+      "inputType": "p2pk",
+      "expectedWeight": 456,
+      "descriptor": "pk(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)"
+    },
+    {
+      "name": "P2PKH",
+      "inputType": "p2pkh",
+      "expectedWeight": 592,
+      "descriptor": "pkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)"
+    },
+    {
+      "name": "P2SH-P2WPKH",
+      "inputType": "p2sh-p2wpkh",
+      "expectedWeight": 364,
+      "descriptor": "sh(wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798))"
+    },
+    {
+      "name": "P2SH 2-of-3 multisig",
+      "inputType": {
+        "type": "p2sh-multisig",
+        "m": 2,
+        "n": 3
+      },
+      "expectedWeight": 1196,
+      "descriptor": "sh(multi(2,02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867,024cfa088a9723691a28758550648d756aebe1bbd9a4c3d771bc353541ae762a66))"
     }
   ]
 }

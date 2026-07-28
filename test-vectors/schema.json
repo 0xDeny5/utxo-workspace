@@ -9,6 +9,9 @@
     },
     "selections": {
       "type": "array"
+    },
+    "descriptors": {
+      "type": "array"
     }
   },
   "additionalProperties": true

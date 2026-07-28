@@ -1,0 +1,195 @@
+{
+  "$schema": "./schema.json",
+  "descriptors": [
+    {
+      "name": "bare pk",
+      "descriptor": "pk(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "pkh",
+      "descriptor": "pkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "wpkh",
+      "descriptor": "wpkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "sh(wpkh(...))",
+      "descriptor": "sh(wpkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07))",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "wsh(pkh(...))",
+      "descriptor": "wsh(pkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07))",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "sh(wsh(multi(...)))",
+      "descriptor": "sh(wsh(multi(1,02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867)))",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "top-level multi",
+      "descriptor": "multi(1,02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "sortedmulti",
+      "descriptor": "wsh(sortedmulti(1,02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867))",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "combo",
+      "descriptor": "combo(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "raw",
+      "descriptor": "raw(deadbeef)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "addr bech32",
+      "descriptor": "addr(bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "tr key path only",
+      "descriptor": "tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "tr with single script-path leaf",
+      "descriptor": "tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729,pk(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729))",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "tr with a two-leaf tree",
+      "descriptor": "tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729,{pk(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729),pk(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729)})",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "key origin with hardened path",
+      "descriptor": "pkh([d34db33f/44h/0h/0h]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "xpub with derivation and range",
+      "descriptor": "wpkh(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/0/*)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "multipath both branches",
+      "descriptor": "wpkh(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/<0;1>/*)",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "checksum verified",
+      "descriptor": "addr(bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4)#uyjndxcw",
+      "expected": { "ok": true }
+    },
+    {
+      "name": "invalid checksum rejected",
+      "descriptor": "addr(bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4)#uyjndxcx",
+      "expected": { "ok": false, "reason": "invalid-checksum" }
+    },
+    {
+      "name": "key origin with a range marker is rejected",
+      "descriptor": "pkh([d34db33f/44h/0h/*]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "7-character fingerprint is rejected",
+      "descriptor": "pkh([d34db3f/44h]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "9-character fingerprint is rejected",
+      "descriptor": "pkh([d34db33f0/44h]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "lowercase 0f hardened marker is rejected",
+      "descriptor": "pkh([d34db33f/0f]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "negative index is rejected",
+      "descriptor": "pkh([d34db33f/-0]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "uppercase 0H hardened marker is rejected",
+      "descriptor": "pkh([d34db33f/0H]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "derivation path after a WIF key is rejected",
+      "descriptor": "wpkh(cQR3sQBt2xrPGa17R8XiKtxTMLTf7Nx9K5xz9ppMuxsyPsSpBnBH/0)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "index at 2^31 is rejected",
+      "descriptor": "wpkh(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/2147483648)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "two key origin blocks are rejected",
+      "descriptor": "pkh([d34db33f/0h][d34db33f/0h]02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "sh(sh(...)) is rejected",
+      "descriptor": "sh(sh(wpkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)))",
+      "expected": { "ok": false, "reason": "invalid-context" }
+    },
+    {
+      "name": "wsh(tr(...)) is rejected",
+      "descriptor": "wsh(tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729))",
+      "expected": { "ok": false, "reason": "invalid-context" }
+    },
+    {
+      "name": "tr(KEY,pkh(...)) is rejected because tapscript leaves are pk-only in this version",
+      "descriptor": "tr(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729,pkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07))",
+      "expected": { "ok": false, "reason": "unsupported" }
+    },
+    {
+      "name": "duplicate multipath values are rejected",
+      "descriptor": "wpkh(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/<0;0>/*)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "uncompressed key inside wsh() is rejected",
+      "descriptor": "wsh(pkh(04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f))",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "bare x-only key outside tr() is rejected",
+      "descriptor": "pk(63cc121461f39de77043ee0583d261de1381f75dd10ac1fc6a95b8ff20994729)",
+      "expected": { "ok": false, "reason": "invalid-key-expression" }
+    },
+    {
+      "name": "unknown function is rejected",
+      "descriptor": "notafunction(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07)",
+      "expected": { "ok": false, "reason": "unknown-function" }
+    },
+    {
+      "name": "musig is unsupported",
+      "descriptor": "musig(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867)",
+      "expected": { "ok": false, "reason": "unsupported" }
+    },
+    {
+      "name": "sp is unsupported",
+      "descriptor": "sp(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07,03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867)",
+      "expected": { "ok": false, "reason": "unsupported" }
+    },
+    {
+      "name": "invalid character is rejected",
+      "descriptor": "pkh(02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07 \u2603)",
+      "expected": { "ok": false, "reason": "invalid-character" }
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "name": "utxo-descriptors",
+  "version": "0.0.0",
+  "description": "Dependency-free Bitcoin output descriptor (BIP-380) parser and weight estimator",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xDeny5/utxo-coinselect"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./parse": {
+      "types": "./dist/parse.d.ts",
+      "import": "./dist/parse.js",
+      "require": "./dist/parse.cjs"
+    },
+    "./weights": {
+      "types": "./dist/weights.d.ts",
+      "import": "./dist/weights.js",
+      "require": "./dist/weights.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "coverage": "vitest run --coverage",
+    "mutation": "stryker run",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "utxo-descriptors",
+    "bitcoin",
+    "descriptor",
+    "output-descriptor",
+    "bip380",
+    "miniscript",
+    "utxo",
+    "taproot",
+    "segwit",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
+    "vitest": "^4.1.10"
+  }
+}

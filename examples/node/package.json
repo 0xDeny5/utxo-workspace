@@ -7,9 +7,11 @@
     "coin-control": "tsx coin-control.ts",
     "send-all": "tsx send-all.ts",
     "strategies": "tsx compare-strategies.ts",
+    "descriptors": "tsx descriptors.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "utxo-coinselect": "workspace:^"
+    "utxo-coinselect": "workspace:^",
+    "utxo-descriptors": "workspace:^"
   }
 }

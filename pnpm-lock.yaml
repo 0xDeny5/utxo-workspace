@@ -113,8 +113,23 @@ importers:
       utxo-coinselect:
         specifier: workspace:^
         version: link:../../packages/utxo-coinselect
+      utxo-descriptors:
+        specifier: workspace:^
+        version: link:../../packages/utxo-descriptors
 
   packages/utxo-coinselect:
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^9.6.1
+        version: 9.6.1(@types/node@12.20.55)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^9.6.1
+        version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@12.20.55))(vitest@4.1.10)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@12.20.55)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@12.20.55)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/utxo-descriptors:
     devDependencies:
       '@stryker-mutator/core':
         specifier: ^9.6.1

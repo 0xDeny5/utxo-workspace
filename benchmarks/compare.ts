@@ -20,6 +20,10 @@ import {
   type SelectionRequest,
   type Utxo,
 } from "../packages/utxo-coinselect/src";
+import {
+  inputWeight as descriptorInputWeight,
+  parseDescriptor,
+} from "../packages/utxo-descriptors/src";
 
 const UTXO_COUNT = 100;
 const TARGET_VALUE = 500_000;
@@ -91,3 +95,40 @@ benchmark
 
 await benchmark.run();
 console.table(benchmark.table());
+
+/**
+ * `utxo-descriptors` has no derivation step and no cache to warm, so the fair
+ * comparison is bitcoinerlab's full "construct + price" cost, which is what a
+ * caller pays per UTXO the first time it sees that descriptor. The pre-built
+ * `Output` case is included only to show how much of bitcoinerlab's cost is
+ * paid once at construction versus per `inputWeight()` call.
+ */
+const wpkhDescriptor = "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+const bitcoinerlabWpkhOutput: OutputInstance = new Output({ descriptor: wpkhDescriptor });
+const descriptorsBenchmark = new Bench({ time: BENCH_TIME_MS, warmupTime: BENCH_WARMUP_MS });
+
+descriptorsBenchmark
+  .add("utxo-descriptors: parse + inputWeight", () => {
+    const parsed = parseDescriptor(wpkhDescriptor);
+
+    if (!parsed.ok) {
+      throw new Error(parsed.message);
+    }
+
+    const weight = descriptorInputWeight(parsed.descriptor.script);
+
+    if (!weight.ok) {
+      throw new Error(weight.message);
+    }
+  })
+  .add("@bitcoinerlab/descriptors: construct + inputWeight", () => {
+    const output: OutputInstance = new Output({ descriptor: wpkhDescriptor });
+
+    output.inputWeight(true, "DANGEROUSLY_USE_FAKE_SIGNATURES");
+  })
+  .add("@bitcoinerlab/descriptors: inputWeight on a pre-built Output", () => {
+    bitcoinerlabWpkhOutput.inputWeight(true, "DANGEROUSLY_USE_FAKE_SIGNATURES");
+  });
+
+await descriptorsBenchmark.run();
+console.table(descriptorsBenchmark.table());

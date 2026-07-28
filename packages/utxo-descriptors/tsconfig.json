@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // ".." rather than "." because test/weights-agreement.test.ts imports
+    // straight from ../utxo-coinselect/src, mirroring the sibling's own
+    // from-source test imports; this only affects `tsc --noEmit`, since
+    // tsup's dts build only ever walks the entry points under src/.
+    "rootDir": ".."
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

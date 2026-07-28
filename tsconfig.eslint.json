@@ -5,7 +5,10 @@
     "paths": {
       "utxo-coinselect": ["./packages/utxo-coinselect/src/index.ts"],
       "utxo-coinselect/strategies": ["./packages/utxo-coinselect/src/strategies.ts"],
-      "utxo-coinselect/weights": ["./packages/utxo-coinselect/src/weights.ts"]
+      "utxo-coinselect/weights": ["./packages/utxo-coinselect/src/weights.ts"],
+      "utxo-descriptors": ["./packages/utxo-descriptors/src/index.ts"],
+      "utxo-descriptors/parse": ["./packages/utxo-descriptors/src/parse.ts"],
+      "utxo-descriptors/weights": ["./packages/utxo-descriptors/src/weights.ts"]
     }
   },
   "include": ["benchmarks/**/*.ts", "examples/**/*.ts", "packages/**/*.ts"],
