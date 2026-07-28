@@ -106,15 +106,15 @@ importers:
     dependencies:
       utxo-coinselect:
         specifier: workspace:^
-        version: link:../../packages/core
+        version: link:../../packages/utxo-coinselect
 
   examples/node:
     dependencies:
       utxo-coinselect:
         specifier: workspace:^
-        version: link:../../packages/core
+        version: link:../../packages/utxo-coinselect
 
-  packages/core:
+  packages/utxo-coinselect:
     devDependencies:
       '@stryker-mutator/core':
         specifier: ^9.6.1

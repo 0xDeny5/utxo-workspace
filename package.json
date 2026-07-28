@@ -1,9 +1,9 @@
 {
-  "name": "utxo-coinselect-workspace",
+  "name": "utxo-workspace",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Modern, weight-aware Bitcoin UTXO coin selection for TypeScript",
+  "description": "Accurate, dependency-free UTXO primitives for TypeScript — coin selection, descriptors, and related libraries",
   "packageManager": "pnpm@11.6.0",
   "engines": {
     "node": ">=22.13"
@@ -14,7 +14,7 @@
     "changeset": "changeset",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "commitlint": "commitlint",
-    "coverage": "pnpm --filter utxo-coinselect coverage",
+    "coverage": "pnpm -r coverage",
     "docs": "typedoc",
     "examples": "pnpm --filter utxo-coinselect-example-node start",
     "format": "prettier --write .",
@@ -22,7 +22,7 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "lint-staged": "lint-staged",
-    "mutation": "pnpm --filter utxo-coinselect mutation",
+    "mutation": "pnpm -r mutation",
     "prepare": "husky",
     "release": "pnpm check && pnpm coverage && changeset publish",
     "size": "size-limit",
@@ -65,7 +65,7 @@
   },
   "size-limit": [
     {
-      "path": "packages/core/dist/index.js",
+      "path": "packages/utxo-coinselect/dist/index.js",
       "limit": "20 kB"
     }
   ]

@@ -4,9 +4,48 @@ Dependency-free, weight-aware Bitcoin UTXO coin selection for TypeScript.
 
 You pass UTXOs, payment targets, and a fee rate; you get selected inputs, outputs (including optional change), fee, and a waste score. No keys, PSBTs, or wallet sync.
 
+## Table of contents
+
+- [Install](#install)
+- [Motivation](#motivation)
+- [Quick start](#quick-start)
+- [Full selectCoins request](#full-selectcoins-request-every-option)
+- [Result shape](#result-shape)
+- [Examples](#examples)
+- [Weights](#weights)
+- [How selection works](#how-selection-works)
+- [Strategies](#strategies)
+- [Coin control and privacy](#coin-control-and-privacy)
+- [See also](#see-also)
+
+## Install
+
 ```sh
 pnpm add utxo-coinselect
+# or
+npm install utxo-coinselect
+# or
+yarn add utxo-coinselect
 ```
+
+Requirements: **Node.js 20+**, or any runtime with ES2020 and `bigint` (modern browsers, edge workers).
+
+## Motivation
+
+Existing Typescript Coin Selection libraries often trade off between simplicity, accuracy, and algorithmic flexibility. This package was created to fill this gap: a standalone engine combining accurate UTXO weight estimation with wide variety of modern selection algorithms. For instance, [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect), hardcodes sizes of UTXOs (which affects the "cost") whenever you omit an explicit "script" field — so SegWit, Taproot, and especially multisig systematically misprice fees and change. In addition, it lacks a broad set of modern coin-selection strategies.
+
+Looking for a drop-in fix, the JS/TS landscape split awkwardly:
+
+| Library                                                                        | Accurate per-type weights?                                   | Modern algorithms (BnB, waste, ...)?     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------- |
+| [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect)                | No — hardcodes roughly P2PKH input size + no TS support even | No — blackjack + accumulative            |
+| [@bitcoinerlab/coinselect](https://github.com/bitcoinerlab/coinselect)         | Yes                                                          | Mostly the same heuristics               |
+| [@scure/btc-signer](https://github.com/paulmillr/scure-btc-signer)             | Yes                                                          | Heuristic matrix                         |
+| [bdk_coin_select](https://docs.rs/bdk_coin_select) (Rust) / Bitcoin Core (C++) | Yes                                                          | Yes — but not a small pure-TS dependency |
+
+Core and BDK already solved the _algorithm_ side (Branch-and-Bound, waste metric, CoinGrinder, SRD, ...). However, such libraries lack a **tiny, selection-only TypeScript library**: no keys, no PSBT, no WASM wallet stack — just UTXOs in, chosen inputs / change / fee / waste out, with callers supplying (or catalog-deriving) accurate per-input weights.
+
+So, **accurate weight modeling** brings this approach to TS: accurate weight modeling (including M-of-N multisig and Taproot) **and** the modern Core/BDK-style algorithm suite, tree-shakeable and usable beside any transaction builder.
 
 ## Quick start
 
@@ -162,7 +201,7 @@ result.weight; // final transaction weight (WU)
 result.strategy; // strategy that produced this success
 ```
 
-## More examples
+## Examples
 
 ### Coin control
 
@@ -170,7 +209,7 @@ result.strategy; // strategy that produced this success
 const result = selectCoins({
   utxos: [
     {
-      txid: "aa",
+      txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
       vout: 0,
       value: 40_000n,
       weight: inputWeight("p2wpkh"),
@@ -178,7 +217,7 @@ const result = selectCoins({
       confirmations: 6,
     },
     {
-      txid: "bb",
+      txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
       vout: 1,
       value: 500_000n,
       weight: inputWeight("p2wpkh"),
@@ -186,7 +225,7 @@ const result = selectCoins({
       confirmations: 100,
     },
     {
-      txid: "cc",
+      txid: "a1075db55d416d3eda53448fb8a51ba2fe7967bf365d852df5583e8cbb12e4a7",
       vout: 2,
       value: 80_000n,
       weight: inputWeight("p2wpkh"),
@@ -211,8 +250,18 @@ Exactly one target may omit `value`; it receives the post-fee remainder.
 ```ts
 const result = selectCoins({
   utxos: [
-    { txid: "aa", vout: 0, value: 75_000n, weight: inputWeight("p2tr") },
-    { txid: "bb", vout: 1, value: 40_000n, weight: inputWeight("p2tr") },
+    {
+      txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
+      vout: 0,
+      value: 75_000n,
+      weight: inputWeight("p2tr"),
+    },
+    {
+      txid: "b10c0ea393bd7ef27cf147f41d572b0786b63df557d0982f978ce7e1581839280",
+      vout: 1,
+      value: 40_000n,
+      weight: inputWeight("p2tr"),
+    },
   ],
   targets: [{ weight: outputWeight("p2tr") }], // value omitted on purpose
   feeRate: 3,
@@ -314,11 +363,90 @@ dustThresholdFor(outputWeight("p2wpkh"), inputWeight("p2wpkh")); // Core-style d
 
 Key-path spends use `inputWeight("p2tr")` — no `P2TR_SCRIPT`. Script-path spends need `P2TR_SCRIPT` so the witness (script + control block + stack) is costed correctly.
 
+## How selection works
+
+1. Each UTXO has an **effective value**: `value − fee(inputWeight, feeRate)`.
+2. Strategies search for a set of inputs that funds the targets plus fees.
+3. Change is created only when the leftover is above the dust threshold; otherwise the leftover is added to the miner fee (changeless).
+4. Candidates are compared with the **waste metric** (changeful vs changeless forms), so "better" means lower long-term fee cost, not only "first solution found".
+
+Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-coinselect/blob/main/test-vectors/).
+
 ## Strategies
 
-Default is `"best"` (runs several algorithms, keeps lowest waste). Full list: `STRATEGY_NAMES`.
+Pass `strategy` on the request (default `"best"`), or call a dedicated helper such as `selectBranchAndBound`. The full list is exported as `STRATEGY_NAMES`.
 
-Catalog and when to pick each: [Strategies in the repo README](https://github.com/0xDeny5/utxo-coinselect#strategies).
+### Default meta-strategy
+
+| Name   | What it does                                               | When to use                                       |
+| ------ | ---------------------------------------------------------- | ------------------------------------------------- |
+| `best` | Runs several strategies and keeps the lowest-waste success | Everyday wallet sends when a few dozen ms is fine |
+
+`best` typically tries Branch-and-Bound, Knapsack, Single Random Draw, largest/smallest/oldest-first, and Blackjack. CoinGrinder is included when the current fee rate is more than 3× the long-term rate.
+
+### Modern search (Core / BDK family)
+
+| Name                 | Aliases | Short explanation                                                                                    |
+| -------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
+| `branch-and-bound`   | `bnb`   | Depth-first search for a **changeless** solution in a bounded waste window; prunes hopeless branches |
+| `coingrinder`        | —       | Bounded search that minimizes **input weight** (useful when fees are high)                           |
+| `single-random-draw` | `srd`   | Shuffle UTXOs with a seedable RNG, then accumulate until funded                                      |
+| `knapsack`           | —       | Randomized subset passes, then compare with a largest-first fallback                                 |
+
+### Deterministic orderings
+
+| Name                  | Short explanation                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `largest-first`       | Spend highest effective-value UTXOs first                                              |
+| `smallest-first`      | Prefer small UTXOs (can reduce change, may raise input count)                          |
+| `oldest-first`        | FIFO by timestamp / confirmations                                                      |
+| `newest-first`        | LIFO by timestamp / confirmations                                                      |
+| `pruned-fifo`         | Oldest-first after dropping UTXOs whose effective value is below the change dust floor |
+| `high-priority-first` | Order by `value * confirmations`                                                       |
+
+### Compatibility heuristics (JS ecosystem)
+
+| Name              | Short explanation                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `blackjack`       | Try to hit a changeless "sweet spot" without overshooting                          |
+| `accumulative`    | Keep adding ordered UTXOs until the payment is funded                              |
+| `exact-*/accum-*` | Blackjack-style exact pass, then accumulative fallback, with independent orderings |
+
+There are 16 matrix names of the form `exact-{biggest|smallest|oldest|newest}/accum-{biggest|smallest|oldest|newest}`.
+
+**Note:** `strategy: "blackjack"` does **not** automatically fall back to accumulative. For that chaining, call blackjack then accumulative yourself, or use a matrix strategy such as `exact-biggest/accum-biggest`.
+
+### Distribution helpers
+
+| Name    | Short explanation                                          |
+| ------- | ---------------------------------------------------------- |
+| `split` | Send-all / even remainder into one valueless target output |
+| `break` | Break funded value into equal denomination outputs         |
+
+### Choosing a strategy quickly
+
+| Goal                                           | Suggested `strategy`                 |
+| ---------------------------------------------- | ------------------------------------ |
+| Best fee / waste trade-off for normal payments | `best` (default)                     |
+| Fast path comparable to old `coinselect`       | `accumulative` or `blackjack`        |
+| Prefer no change output                        | `branch-and-bound` / `bnb`           |
+| High fee environment, minimize weight          | `coingrinder`                        |
+| Deterministic, explainable ordering            | `largest-first`, `oldest-first`, ... |
+| Send entire wallet balance                     | `split`                              |
+
+Randomized strategies (`srd`, `knapsack`, and anything that uses them inside `best`) accept `seed` and are **deterministic for the same request + seed**.
+
+## Coin control and privacy
+
+| Option                            | Effect                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------- |
+| `required: true` on a UTXO        | Must be included (unless excluded/frozen)                                 |
+| `excluded: true` / `frozen: true` | Never selected                                                            |
+| `minConfirmations`                | Skip non-required UTXOs below the threshold                               |
+| `avoidPartialSpends`              | UTXOs sharing `group` are selected atomically (output groups / APS-style) |
+| `preferSingleScriptType`          | Prefer a homogeneous `scriptType` set before mixing                       |
+
+`preferSingleScriptType` is inspired by Bitcoin Core discussions around keeping input script types uniform (see Core [#24584](https://github.com/bitcoin/bitcoin/pull/24584) lineage). Attach wallet metadata with `meta` rather than inventing ad-hoc top-level fields.
 
 ## See also
 

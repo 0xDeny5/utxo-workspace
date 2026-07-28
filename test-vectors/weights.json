@@ -1,0 +1,24 @@
+{
+  "$schema": "./schema.json",
+  "weights": [
+    {
+      "name": "P2WPKH",
+      "inputType": "p2wpkh",
+      "expectedWeight": 272
+    },
+    {
+      "name": "Taproot key path",
+      "inputType": "p2tr",
+      "expectedWeight": 230
+    },
+    {
+      "name": "P2WSH 2-of-3",
+      "inputType": {
+        "type": "p2wsh-multisig",
+        "m": 2,
+        "n": 3
+      },
+      "expectedWeight": 420
+    }
+  ]
+}

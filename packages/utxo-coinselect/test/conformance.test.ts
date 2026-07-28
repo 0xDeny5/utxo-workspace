@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import vectors from "../../../test-vectors/core.json";
+import coinSelectionVectors from "../../../test-vectors/coin-selection.json";
+import weightVectors from "../../../test-vectors/weights.json";
 import type { ChangePolicy, InputType, SelectionRequest, StrategyName, Utxo } from "../src/index";
 import { inputWeight, selectCoins } from "../src/index";
 
 describe("language-neutral conformance vectors", () => {
-  for (const vector of vectors.weights) {
+  for (const vector of weightVectors.weights) {
     it(`matches weight vector: ${vector.name}`, () => {
       expect(inputWeight(vector.inputType as InputType)).toBe(vector.expectedWeight);
     });
   }
 
-  for (const vector of vectors.selections) {
+  for (const vector of coinSelectionVectors.selections) {
     it(`matches selection vector: ${vector.name}`, () => {
       const targets = vector.targets.map((raw) => {
         const target: { weight: number; value: bigint } = {

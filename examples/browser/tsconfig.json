@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "paths": {
-      "utxo-coinselect": ["../../packages/core/src/index.ts"]
+      "utxo-coinselect": ["../../packages/utxo-coinselect/src/index.ts"]
     }
   },
   "include": ["src"]
