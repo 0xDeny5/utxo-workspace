@@ -1,5 +1,11 @@
 # utxo-coinselect
 
+## 0.1.4
+
+### Patch Changes
+
+- 102048b: Remove redundant `frozen` UTXO flag; use `excluded: true` for do-not-spend coins (wallet "freeze" maps to `excluded` at the boundary).
+
 ## 0.1.3
 
 ### Patch Changes
