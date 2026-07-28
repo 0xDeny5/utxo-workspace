@@ -126,8 +126,8 @@ Best runs a fixed shortlist and returns the minimum-waste success: Branch-and-Bo
 
 ## Coin control and privacy
 
-- Excluded and frozen candidates MUST NOT be selected.
-- Force-included candidates MUST be selected unless excluded or frozen.
+- Excluded candidates MUST NOT be selected.
+- Force-included candidates MUST be selected unless excluded.
 - Minimum-confirmation filtering applies to non-required candidates.
 - With avoid-partial-spends, candidates sharing a group are atomic.
 - With single-script-type preference, homogeneous selections are attempted before the mixed pool.
