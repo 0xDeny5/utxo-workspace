@@ -6,8 +6,18 @@ import { inputWeight, outputWeight, selectCoins } from "utxo-coinselect";
  */
 const result = selectCoins({
   utxos: [
-    { txid: "aa", vout: 0, value: 75_000n, weight: inputWeight("p2tr") },
-    { txid: "bb", vout: 1, value: 40_000n, weight: inputWeight("p2tr") },
+    {
+      txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
+      vout: 0,
+      value: 75_000n,
+      weight: inputWeight("p2tr"),
+    },
+    {
+      txid: "b10c0ea393bd7ef27cf147f41d572b0786b63df557d0982f978ce7e1581839280",
+      vout: 1,
+      value: 40_000n,
+      weight: inputWeight("p2tr"),
+    },
   ],
   targets: [{ weight: outputWeight("p2tr") }],
   feeRate: 3,

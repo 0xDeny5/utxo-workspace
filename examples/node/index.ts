@@ -3,7 +3,7 @@ import { inputWeight, outputWeight, P2WSH_MULTISIG, selectCoins } from "utxo-coi
 const result = selectCoins({
   utxos: [
     {
-      txid: "single-sig",
+      txid: "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",
       vout: 0,
       value: 100_000n,
       weight: inputWeight("p2wpkh"),
@@ -11,7 +11,7 @@ const result = selectCoins({
       confirmations: 12,
     },
     {
-      txid: "multisig",
+      txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
       vout: 1,
       value: 250_000n,
       weight: inputWeight(P2WSH_MULTISIG(2, 3)),
