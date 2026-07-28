@@ -111,7 +111,7 @@ state = state modulo 2^32
 ```
 
 1. The returned sample in `[0, 1)` is `state / 2^32` (unsigned 32-bit `state`).
-2. Fisher-Yates shuffle for `n` items visits indices `n-1 … 1` and swaps index `i` with
+2. Fisher-Yates shuffle for `n` items visits indices `n-1 ... 1` and swaps index `i` with
    `floor(random() * (i + 1))`.
 
 ### Split and break

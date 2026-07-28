@@ -102,8 +102,8 @@ import { expandMultipath } from "utxo-descriptors";
 
 const parsed = parseDescriptor("wpkh([d34db33f/84h/0h/0h]xpub.../<0;1>/*)");
 const expanded = expandMultipath(parsed.descriptor!.script);
-// expanded.descriptors[0] -> the receive-chain (…/0/*) descriptor
-// expanded.descriptors[1] -> the change-chain (…/1/*) descriptor
+// expanded.descriptors[0] -> the receive-chain (.../0/*) descriptor
+// expanded.descriptors[1] -> the change-chain (.../1/*) descriptor
 ```
 
 Tuple elements may be hardened independently and in any order; duplicates within a tuple are rejected, matching the BIP rather than the stricter subset some implementations accept.
