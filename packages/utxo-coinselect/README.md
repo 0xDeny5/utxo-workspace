@@ -366,7 +366,7 @@ Key-path spends use `inputWeight("p2tr")` — no `P2TR_SCRIPT`. Script-path spen
 3. Change is created only when the leftover is above the dust threshold; otherwise the leftover is added to the miner fee (changeless).
 4. Candidates are compared with the **waste metric** (changeful vs changeless forms), so "better" means lower long-term fee cost, not only "first solution found".
 
-Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-coinselect/blob/main/test-vectors/).
+Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-workspace/tree/main/test-vectors/).
 
 ## Strategies
 
@@ -477,5 +477,5 @@ Use when a UTXO must **never** be selected: wallet "freeze coin", reserved balan
 
 ## See also
 
-- Behavior contract: [spec/coin-selection.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/spec/coin-selection.md)
-- Runnable demos: [examples/README.md](https://github.com/0xDeny5/utxo-coinselect/blob/main/examples/README.md)
+- Behavior contract: [spec/coin-selection.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/coin-selection.md)
+- Runnable demos: [examples/README.md](https://github.com/0xDeny5/utxo-workspace/blob/main/examples/README.md)
