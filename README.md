@@ -14,7 +14,13 @@ This is a monorepo. Each package below is published and versioned independently.
 
 ```sh
 pnpm add utxo-coinselect
+# or
+npm install utxo-coinselect
+# or
+yarn add utxo-coinselect
 ```
+
+## Examples
 
 ```ts
 import { inputWeight, outputWeight, selectCoins } from "utxo-coinselect";
@@ -43,7 +49,7 @@ if (!result.ok) {
 console.log(result.inputs, result.fee, result.change);
 ```
 
-See each package's README for its full API, options, and examples.
+See [`utxo-coinselect`](packages/utxo-coinselect/README.md) for the full API and more examples, and [`examples/`](examples/) for runnable Node and browser demos.
 
 ## Strategies
 
