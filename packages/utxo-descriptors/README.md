@@ -21,9 +21,14 @@ pnpm add utxo-descriptors
 ## Quick start
 
 ```ts
-import { inputWeight, outputWeight, parseDescriptor } from "utxo-descriptors";
+import { inputWeight, parseDescriptor } from "utxo-descriptors";
 
-const result = parseDescriptor("wsh(multi(2,03a34b...,02cb67...,024cfa...))#8k0h5xxx");
+const result = parseDescriptor(
+  "wsh(multi(2," +
+    "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7," +
+    "03774ae7f858a9411e5ef4246b70c65aac5649980be5c17891bbec17895da008cb," +
+    "03d01115d548e7561b15c38f004d734633687cf4419620095bc5b0f47070afe85a))#en3tu306",
+);
 
 if (!result.ok) {
   throw new Error(`${result.reason}: ${result.message}`);
@@ -35,7 +40,7 @@ if (!weight.ok) {
   throw new Error(`${weight.reason}: ${weight.message}`);
 }
 
-console.log(weight.weight); // weight units, ready for utxo-coinselect
+console.log(weight.weight); // 420 weight units, ready for utxo-coinselect
 ```
 
 `outputWeight()` mirrors `inputWeight()` for the scriptPubKey side, and both accept any parsed `ScriptNode` directly, so you can build one by hand instead of parsing a string.
@@ -45,8 +50,8 @@ console.log(weight.weight); // weight units, ready for utxo-coinselect
 The whole point of pairing these two packages: descriptors in, `selectCoins()` inputs out.
 
 ```ts
-import { describeInput, inputWeight, outputWeight, parseDescriptor } from "utxo-descriptors";
 import { selectCoins } from "utxo-coinselect";
+import { describeInput, inputWeight, outputWeight, parseDescriptor } from "utxo-descriptors";
 
 const receiveDescriptor =
   "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
@@ -62,12 +67,22 @@ function priceUtxo(txid: string, vout: number, value: bigint, descriptor: string
   if (!weight.ok) throw new Error(weight.message);
   if (!description.ok) throw new Error(description.message);
 
-  return { txid, vout, value, weight, scriptType: description.description };
+  // `description` is a named type ("p2wpkh") or an object ({ type: "p2wsh-multisig", m, n }).
+  const scriptType =
+    typeof description.description === "string"
+      ? description.description
+      : description.description.type;
+
+  return { txid, vout, value, weight: weight.weight, scriptType };
 }
 
 const parsedTarget = parseDescriptor(receiveDescriptor);
 
 if (!parsedTarget.ok) throw new Error(parsedTarget.message);
+
+const targetWeight = outputWeight(parsedTarget.descriptor.script);
+
+if (!targetWeight.ok) throw new Error(targetWeight.message);
 
 const result = selectCoins({
   utxos: [
@@ -78,10 +93,12 @@ const result = selectCoins({
       receiveDescriptor,
     ),
   ],
-  targets: [{ value: 50_000n, weight: outputWeight(parsedTarget.descriptor.script) }],
+  targets: [{ value: 50_000n, weight: targetWeight.weight }],
   feeRate: 5,
 });
 ```
+
+Both `inputWeight()` and `outputWeight()` return a result object, so pass `.weight` (a number) to `selectCoins()`, not the result itself.
 
 `describeInput()`/`describeOutput()` return values that are structurally assignable to `utxo-coinselect`'s `InputType`/`OutputType`, verified by a repo-local cross-package test — see [the runnable version of this example](https://github.com/0xDeny5/utxo-workspace/blob/main/examples/node/descriptors.ts).
 
@@ -90,6 +107,7 @@ const result = selectCoins({
 - Key expressions: raw hex (compressed, uncompressed, x-only), WIF, and extended `xpub`/`xprv` (Bitcoin) or `tpub`/`tprv` (testnet), each with an optional `[fingerprint/path]` origin and an optional derivation path, including a trailing ranged `/*`.
 - Script expressions: `pk()`, `pkh()`, `wpkh()`, `combo()`, `sh()`, `wsh()`, `multi()`/`sortedmulti()`, `raw()`, `addr()`, and `tr()` — key-path only or with a script-path tree of `pk()` leaves.
 - The BIP-380 checksum: `checksumCreate()` and `checksumVerify()`, exported directly for callers that only need checksum handling.
+- `addr()` output weight decodes base58 version bytes for Bitcoin mainnet by default. Pass a chain to `outputWeight()`/`describeOutput()` for other networks, e.g. `outputWeight(script, { chain: BITCOIN_TESTNET })`. `BITCOIN`, `BITCOIN_TESTNET`, `LITECOIN`, and `LITECOIN_TESTNET` are exported, and any other chain is a plain `ChainParams` object.
 
 Every context and key-count rule from BIP-381 through BIP-386 (for example: compressed-only keys under `wsh()`, x-only-only keys under `tr()`, `sh()`/`combo()`/`raw()`/`addr()`/`tr()` valid only at the top level) is enforced by the parser, not left to weight computation. See [spec/descriptors.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/descriptors.md) for the normative rules.
 
@@ -98,10 +116,18 @@ Every context and key-count rule from BIP-381 through BIP-386 (for example: comp
 [BIP-389](https://github.com/bitcoin/bips/blob/master/bip-0389.mediawiki) multipath (`<0;1>`) expands into one descriptor per tuple position:
 
 ```ts
-import { expandMultipath } from "utxo-descriptors";
+import { expandMultipath, parseDescriptor } from "utxo-descriptors";
 
-const parsed = parseDescriptor("wpkh([d34db33f/84h/0h/0h]xpub.../<0;1>/*)");
-const expanded = expandMultipath(parsed.descriptor!.script);
+const parsed = parseDescriptor(
+  "wpkh([d34db33f/84h/0h/0h]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/<0;1>/*)",
+);
+
+if (!parsed.ok) throw new Error(parsed.message);
+
+const expanded = expandMultipath(parsed.descriptor.script);
+
+if (!expanded.ok) throw new Error(expanded.message);
+
 // expanded.descriptors[0] -> the receive-chain (.../0/*) descriptor
 // expanded.descriptors[1] -> the change-chain (.../1/*) descriptor
 ```
@@ -110,7 +136,7 @@ Tuple elements may be hardened independently and in any order; duplicates within
 
 ## Errors
 
-Every function returns a discriminated `{ ok: true, ... } | { ok: false, reason, message }` result; nothing here throws on malformed _input_. Parse failures carry a stable `reason` (`invalid-character`, `invalid-checksum`, `unexpected-token`, `unknown-function`, `invalid-key-expression`, `invalid-context`, `key-count-exceeded`, `unsupported`) and, when known, a character `position`. Weight failures carry `opaque-script` (for `addr()`/`raw()` input pricing, where the spending script is genuinely unknown) or `ambiguous-script-type` (for `combo()`, which represents several candidate scripts at once) or `unsupported` (an out-of-scope nesting or miniscript fragment).
+Every function returns a discriminated `{ ok: true, ... } | { ok: false, ... }` result; nothing here throws on malformed _input_. Parse, weight, and describe failures carry `reason` and `message`; `expandMultipath()` failures carry only a `message`, and `checksumCreate()` returns `undefined` for input outside the descriptor character set. Parse failures carry a stable `reason` (`invalid-character`, `invalid-checksum`, `unexpected-token`, `unknown-function`, `invalid-key-expression`, `invalid-context`, `key-count-exceeded`, `unsupported`) and, when known, a character `position`. Weight failures carry `opaque-script` (for `addr()`/`raw()` input pricing, where the spending script is genuinely unknown) or `ambiguous-script-type` (for `combo()`, which represents several candidate scripts at once) or `unsupported` (an out-of-scope nesting or miniscript fragment).
 
 ## Subpath exports
 

@@ -1,7 +1,8 @@
 # Examples
 
-Runnable demos for `utxo-coinselect`. Run all commands from the **repository root** after
-`pnpm install`.
+Runnable demos for `utxo-coinselect` and `utxo-descriptors`. Run all commands from the
+**repository root** after `pnpm install`. Examples import the packages from source, so no build
+step is needed.
 
 Root shortcut: `pnpm examples` runs only the Node quick start (`start`).
 
@@ -12,6 +13,7 @@ pnpm --filter utxo-coinselect-example-node start
 pnpm --filter utxo-coinselect-example-node coin-control
 pnpm --filter utxo-coinselect-example-node send-all
 pnpm --filter utxo-coinselect-example-node strategies
+pnpm --filter utxo-coinselect-example-node descriptors
 ```
 
 ### `start` — everyday payment (`node/index.ts`)
@@ -58,6 +60,16 @@ payment amount (no change output).
 **What to look for:** each line prints `fee`, `waste`, input count, and `used=` (for `best`,
 `used` is the inner winner). Lower waste is usually “better” for long-term fee cost; fees can
 differ when change / input sets differ.
+
+### `descriptors` — price coins from descriptors (`node/descriptors.ts`)
+
+**What it shows:** `utxo-descriptors` feeding `utxo-coinselect` — each UTXO and the payment target
+are priced by parsing an output descriptor instead of naming a script type by hand.
+
+- Wallet: one single-sig `wpkh()` UTXO + one `wsh(multi(2,...))` 2-of-3 UTXO
+- `describeInput()` supplies the `scriptType` label; `inputWeight()`/`outputWeight()` supply the WU
+
+**What to look for:** the selected outpoint, `fee`, `change`, and the final transaction `weight`.
 
 ## Browser
 
