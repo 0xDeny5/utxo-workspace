@@ -1,24 +1,9 @@
 # Changelog
 
-All notable changes will be documented here.
+Each package is versioned and released independently with Changesets, so release notes live next
+to the package they describe:
 
-The project follows Semantic Versioning and uses Changesets to prepare releases.
+- [`utxo-coinselect`](packages/utxo-coinselect/CHANGELOG.md)
+- [`utxo-descriptors`](packages/utxo-descriptors/CHANGELOG.md)
 
-## 0.1.3
-
-- Improve project motivation wording and harden coverage for uneconomical accumulator inputs.
-
-## 0.1.2
-
-- Link npm README "See also" and Strategies to GitHub URLs so they work on npmjs.com.
-
-## 0.1.1
-
-- Trim root contributor docs and clean the 0.1.0 changelog for the public package page.
-
-## 0.1.0
-
-- Initial weight-aware coin-selection engine.
-- Modern, deterministic, randomized, and compatibility strategies.
-- Catalog helpers for common script types (including multisig and Taproot).
-- Shared test vectors, runnable examples, and a language-neutral behavior spec.
+The workspace root itself is private and never published.

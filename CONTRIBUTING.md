@@ -4,7 +4,8 @@ Thanks for helping improve this workspace.
 
 ## Development setup
 
-1. Install [Node.js](https://nodejs.org/) 22.13+ and [pnpm](https://pnpm.io/) 11+.
+1. Install [Node.js](https://nodejs.org/) 22.13+ (`.nvmrc` pins the major for `nvm use` / `fnm use`) and
+   [pnpm](https://pnpm.io/) 11+ (`corepack enable` picks up the exact version from `packageManager`).
 2. From the repository root:
 
 ```sh
@@ -38,14 +39,14 @@ pnpm mutation
 
 ## Local quality gates
 
-| Command          | Purpose                                              |
-| ---------------- | ---------------------------------------------------- |
-| `pnpm check`     | Format, lint, typecheck, tests, build (all packages) |
-| `pnpm coverage`  | Coverage thresholds, run per package                 |
-| `pnpm mutation`  | Mutation testing, run per package                    |
-| `pnpm size`      | Published bundle size budget, per package            |
-| `pnpm run docs`  | Generate local TypeDoc into `docs/api/` (gitignored) |
-| `pnpm benchmark` | Compare selection throughput vs other JS libs        |
+| Command          | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| `pnpm check`     | Format, lint, typecheck, tests, build (all packages)  |
+| `pnpm coverage`  | Coverage thresholds, run per package                  |
+| `pnpm mutation`  | Mutation testing, run per package                     |
+| `pnpm size`      | Published bundle size budget (run `pnpm build` first) |
+| `pnpm run docs`  | Generate local TypeDoc into `docs/api/` (gitignored)  |
+| `pnpm benchmark` | Compare selection throughput vs other JS libs         |
 
 Each package versions and releases independently (see below). A change to one package's source must not carry a changeset for a different, unaffected package. Every published package in this workspace stays free of runtime dependencies.
 
@@ -68,6 +69,9 @@ fix(weights): correct P2WSH multisig witness estimate
 ## Documentation style
 
 Match existing Markdown spacing (single blank lines around headings, tables, and fences; no double blanks).
+
+Line endings are LF everywhere (enforced by `.gitattributes` and Prettier's `endOfLine: lf`), so
+`pnpm format:check` passes on Windows checkouts with `core.autocrlf` too.
 
 ## Requirements
 
@@ -114,5 +118,6 @@ pnpm release
 
 Publishing requires an `NPM_TOKEN` repository secret (Automation token) with
 publish rights. The first publish must use a token: npm trusted publishing (OIDC)
-can only be attached after `utxo-coinselect` already exists on the registry.
+can only be attached to a package that already exists on the registry, so every new package
+(e.g. `utxo-descriptors`) needs its first publish done with the token.
 Without `NPM_TOKEN`, Release still opens version PRs but skips `changeset publish`.
