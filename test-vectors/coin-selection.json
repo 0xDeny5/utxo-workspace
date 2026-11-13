@@ -377,8 +377,8 @@
       "expected": {
         "ok": true,
         "inputs": [{ "txid": "c", "vout": 0 }],
-        "fee": "7025",
-        "change": "32975",
+        "fee": "7050",
+        "change": "32950",
         "weight": 562,
         "strategy": "knapsack"
       }

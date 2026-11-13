@@ -1,9 +1,11 @@
 import {
   betterResult,
   finalizeSelection,
+  fundingCheck,
   selectionTarget,
   sumValues,
   validateRequest,
+  withoutChange,
 } from "./engine";
 import type {
   MatrixStrategy,
@@ -18,7 +20,7 @@ import type {
   Utxo,
 } from "./types";
 import { outpointKey } from "./types";
-import { feeForWeight, resolveDustThreshold } from "./weights";
+import { feeForWeight, relayDustThreshold, resolveDustThreshold } from "./weights";
 
 interface Unit<T> {
   readonly id: string;
@@ -38,6 +40,13 @@ interface Prepared<T> {
   readonly required: readonly Unit<T>[];
   readonly optional: readonly Unit<T>[];
   readonly available: bigint;
+}
+
+interface Totals {
+  value: bigint;
+  weight: number;
+  count: number;
+  effective: bigint;
 }
 
 type DeterministicStrategy =
@@ -67,6 +76,11 @@ const MATRIX_ORDERS: Record<MatrixStrategy, readonly [OrderName, OrderName]> = {
   "exact-newest/accum-oldest": ["newest", "oldest"],
   "exact-newest/accum-newest": ["newest", "newest"],
 };
+/** Default iteration budget for Branch-and-Bound and CoinGrinder, matching Bitcoin Core. */
+const DEFAULT_MAX_ITERATIONS = 100_000;
+/** Upper bound on Knapsack passes, matching Bitcoin Core's ApproximateBestSubset. */
+const KNAPSACK_MAX_ROUNDS = 1_000;
+const DEFAULT_SEED = 0x9e37_79b9;
 
 function createUnit<T>(id: string, utxos: readonly Utxo<T>[], feeRate: number): Unit<T> {
   const value = sumValues(utxos);
@@ -136,6 +150,36 @@ function flatten<T>(units: readonly Unit<T>[]): readonly Utxo<T>[] {
 
 function isNonEmpty<T>(items: readonly T[]): items is readonly [T, ...T[]] {
   return items.length > 0;
+}
+
+function totalsOf<T>(units: readonly Unit<T>[]): Totals {
+  const totals: Totals = { value: 0n, weight: 0, count: 0, effective: 0n };
+
+  for (const unit of units) {
+    addUnit(totals, unit);
+  }
+
+  return totals;
+}
+
+function addUnit<T>(totals: Totals, unit: Unit<T>): void {
+  totals.value += unit.value;
+  totals.weight += unit.weight;
+  totals.count += unit.utxos.length;
+  totals.effective += unit.effective;
+}
+
+/** Suffix sums of effective value: `result[i]` is the total from index `i` to the end. */
+function suffixEffective<T>(units: readonly Unit<T>[]): readonly bigint[] {
+  const sums = new Array<bigint>(units.length + 1).fill(0n);
+
+  for (let index = units.length - 1; index >= 0; index -= 1) {
+    // Safe by construction: 0 <= index < units.length < sums.length.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    sums[index] = sums[index + 1]! + units[index]!.effective;
+  }
+
+  return sums;
 }
 
 function failure<TUtxo, TTarget>(
@@ -209,11 +253,14 @@ function accumulate<TUtxo, TTarget>(
   optionalOverride?: readonly Unit<TUtxo>[],
 ): SelectionResult<TUtxo, TTarget> {
   const prepared = prepare(request);
+  const funded = fundingCheck(request);
   const selected = [...prepared.required];
-  const requiredResult = finalizeSelection(request, flatten(selected), strategy);
+  const totals = totalsOf(selected);
 
-  if (requiredResult.ok) {
-    return requiredResult;
+  // Once funded, finalization can only fail on weight, and adding inputs only
+  // makes the transaction heavier, so the first funded result is final.
+  if (funded(totals.value, totals.weight, totals.count)) {
+    return finalizeSelection(request, flatten(selected), strategy);
   }
 
   let candidates =
@@ -240,10 +287,10 @@ function accumulate<TUtxo, TTarget>(
     }
 
     selected.push(unit);
-    const result = finalizeSelection(request, flatten(selected), strategy);
+    addUnit(totals, unit);
 
-    if (result.ok) {
-      return result;
+    if (funded(totals.value, totals.weight, totals.count)) {
+      return finalizeSelection(request, flatten(selected), strategy);
     }
   }
 
@@ -261,22 +308,32 @@ function changeCost<TUtxo, TTarget>(request: SelectionRequest<TUtxo, TTarget>): 
   );
 }
 
+/**
+ * Changeless strategies (Blackjack, Branch-and-Bound) select within
+ * `[target, target + costOfChange]` and leave the excess to the fee, as
+ * Bitcoin Core does: inside that window a change output would cost more than
+ * it is worth.
+ */
 function blackjack<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
   strategy: StrategyName,
   order: OrderName,
 ): SelectionResult<TUtxo, TTarget> {
   const prepared = prepare(request);
+  const changeless = withoutChange(request);
   const selected = [...prepared.required];
 
-  let selectedEffective = selected.reduce((sum, unit) => sum + unit.effective, 0n);
+  let selectedEffective = totalsOf(selected).effective;
 
   const target = selectionTarget(request);
   const upper = target + changeCost(request);
-  const requiredResult = finalizeSelection(request, flatten(selected), strategy);
 
-  if (requiredResult.ok && requiredResult.change === 0n) {
-    return requiredResult;
+  if (selectedEffective >= target && (request.change === undefined || selectedEffective <= upper)) {
+    const requiredResult = finalizeSelection(changeless, flatten(selected), strategy);
+
+    if (requiredResult.ok) {
+      return requiredResult;
+    }
   }
 
   for (const unit of ordered(prepared.optional, order)) {
@@ -291,9 +348,9 @@ function blackjack<TUtxo, TTarget>(
       continue;
     }
 
-    const result = finalizeSelection(request, flatten(selected), strategy);
+    const result = finalizeSelection(changeless, flatten(selected), strategy);
 
-    if (result.ok && result.change === 0n) {
+    if (result.ok) {
       return result;
     }
   }
@@ -311,8 +368,29 @@ function matrix<TUtxo, TTarget>(
   return exactResult.ok ? exactResult : accumulate(request, strategy, accum);
 }
 
-function seededRandom(seed = 0x9e37_79b9): RandomSource {
-  let state = seed >>> 0;
+function randomSeed(): number {
+  const values = new Uint32Array(1);
+  const crypto = (globalThis as { crypto?: Pick<Crypto, "getRandomValues"> }).crypto;
+
+  if (crypto === undefined) {
+    return Math.floor(Math.random() * 0x1_0000_0000);
+  }
+
+  crypto.getRandomValues(values);
+
+  // Safe by construction: values has exactly one element.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return values[0]!;
+}
+
+/**
+ * xorshift32. Omitting `seed` draws one from `crypto.getRandomValues`, so
+ * randomized strategies are unpredictable by default, as Single Random Draw's
+ * privacy goal requires; pass a seed for reproducible results. Zero is a fixed
+ * point of xorshift, so a zero state is replaced by the default constant.
+ */
+function seededRandom(seed: number = randomSeed()): RandomSource {
+  let state = seed >>> 0 || DEFAULT_SEED;
 
   return () => {
     state ^= state << 13;
@@ -337,7 +415,11 @@ function shuffled<T>(items: readonly T[], random: RandomSource): T[] {
   return copy;
 }
 
-export function selectBranchAndBound<TUtxo, TTarget>(
+function isEquivalent<T>(left: Unit<T>, right: Unit<T>): boolean {
+  return left.effective === right.effective && left.weight === right.weight;
+}
+
+function branchAndBound<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   const strategy: StrategyName = request.strategy === "bnb" ? "bnb" : "branch-and-bound";
@@ -346,74 +428,77 @@ export function selectBranchAndBound<TUtxo, TTarget>(
     prepared.optional.filter((unit) => unit.effective > 0n),
     "biggest",
   );
+  const remaining = suffixEffective(candidates);
+  const changeless = withoutChange(request);
   const selected = [...prepared.required];
 
-  let selectedEffective = selected.reduce((sum, unit) => sum + unit.effective, 0n);
+  let selectedEffective = totalsOf(selected).effective;
 
   const target = selectionTarget(request);
   const upper = target + changeCost(request);
-  const availableEffective = candidates.reduce((sum, candidate) => sum + candidate.effective, 0n);
-  const maxIterations = request.maxIterations ?? 100_000;
+  const maxIterations = request.maxIterations ?? DEFAULT_MAX_ITERATIONS;
 
   let iterations = 0;
   let best: SelectionSuccess<TUtxo, TTarget> | undefined;
 
-  const visit = (
-    remaining: readonly Unit<TUtxo>[],
-    remainingEffective: bigint,
-    previous?: Unit<TUtxo>,
-  ): void => {
-    if (iterations >= maxIterations) {
-      return;
-    }
+  // Depth-first search. Inclusion recurses and exclusion continues the loop,
+  // so recursion depth is bounded by the number of selected inputs.
+  const visit = (start: number): void => {
+    let previousExcluded = false;
 
-    iterations += 1;
-
-    if (selectedEffective >= target) {
-      if (selectedEffective <= upper) {
-        const result = finalizeSelection(request, flatten(selected), strategy);
-
-        if (result.ok && result.change === 0n) {
-          best = betterResult(best, result);
-        }
+    for (let index = start; ; index += 1) {
+      if (iterations >= maxIterations) {
+        return;
       }
 
-      return;
-    }
+      iterations += 1;
 
-    const [candidate, ...rest] = remaining;
+      if (selectedEffective >= target) {
+        if (selectedEffective <= upper) {
+          const result = finalizeSelection(changeless, flatten(selected), strategy);
 
-    if (candidate === undefined) {
-      return;
-    }
+          if (result.ok) {
+            best = betterResult(best, result);
+          }
+        }
 
-    if (selectedEffective + remainingEffective < target) {
-      return;
-    }
+        return;
+      }
 
-    const nextRemainingEffective = remainingEffective - candidate.effective;
+      const candidate = candidates[index];
 
-    selected.push(candidate);
-    selectedEffective += candidate.effective;
+      // Safe by construction: a defined candidate implies index < remaining.length - 1.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (candidate === undefined || selectedEffective + remaining[index]! < target) {
+        return;
+      }
 
-    visit(rest, nextRemainingEffective, candidate);
+      // Bitcoin Core's clone skip: including a candidate right after excluding
+      // an equivalent one repeats a branch that has already been searched.
+      // Safe by construction: previousExcluded implies index > start >= 0.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (!previousExcluded || !isEquivalent(candidates[index - 1]!, candidate)) {
+        selected.push(candidate);
+        selectedEffective += candidate.effective;
 
-    selectedEffective -= candidate.effective;
-    selected.pop();
+        visit(index + 1);
 
-    if (previous?.effective !== candidate.effective || previous.weight !== candidate.weight) {
-      visit(rest, nextRemainingEffective, candidate);
+        selectedEffective -= candidate.effective;
+        selected.pop();
+      }
+
+      previousExcluded = true;
     }
   };
 
-  visit(candidates, availableEffective);
+  visit(0);
 
   const reason = iterations >= maxIterations ? "search-exhausted" : "insufficient-funds";
 
   return best ?? failure(request, prepared, reason);
 }
 
-export function selectCoinGrinder<TUtxo, TTarget>(
+function coinGrinder<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   const prepared = prepare(request);
@@ -421,74 +506,71 @@ export function selectCoinGrinder<TUtxo, TTarget>(
     prepared.optional.filter((unit) => unit.effective > 0n),
     "biggest",
   );
-  const availableEffective = candidates.reduce((sum, candidate) => sum + candidate.effective, 0n);
+  const remaining = suffixEffective(candidates);
   const selected = [...prepared.required];
+  const totals = totalsOf(selected);
 
-  let selectedEffective = selected.reduce((sum, unit) => sum + unit.effective, 0n);
-  let selectedWeight = selected.reduce((sum, unit) => sum + unit.weight, 0);
+  let selectedEffective = totals.effective;
+  let selectedWeight = totals.weight;
 
   const target = selectionTarget(request);
-  const maxIterations = request.maxIterations ?? 100_000;
+  const maxIterations = request.maxIterations ?? DEFAULT_MAX_ITERATIONS;
 
   let iterations = 0;
   let bestWeight = Number.POSITIVE_INFINITY;
   let best: SelectionSuccess<TUtxo, TTarget> | undefined;
 
-  const visit = (remaining: readonly Unit<TUtxo>[], remainingEffective: bigint): void => {
-    if (iterations >= maxIterations) {
-      return;
-    }
-
-    iterations += 1;
-
-    if (selectedWeight >= bestWeight) {
-      return;
-    }
-
-    if (selectedEffective >= target) {
-      const result = finalizeSelection(request, flatten(selected), "coingrinder");
-
-      if (result.ok) {
-        bestWeight = selectedWeight;
-        best = result;
+  const visit = (start: number): void => {
+    for (let index = start; ; index += 1) {
+      if (iterations >= maxIterations) {
+        return;
       }
 
-      return;
+      iterations += 1;
+
+      if (selectedWeight >= bestWeight) {
+        return;
+      }
+
+      if (selectedEffective >= target) {
+        const result = finalizeSelection(request, flatten(selected), "coingrinder");
+
+        if (result.ok) {
+          bestWeight = selectedWeight;
+          best = result;
+        }
+
+        return;
+      }
+
+      const candidate = candidates[index];
+
+      // Safe by construction: a defined candidate implies index < remaining.length - 1.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (candidate === undefined || selectedEffective + remaining[index]! < target) {
+        return;
+      }
+
+      selected.push(candidate);
+      selectedEffective += candidate.effective;
+      selectedWeight += candidate.weight;
+
+      visit(index + 1);
+
+      selectedWeight -= candidate.weight;
+      selectedEffective -= candidate.effective;
+      selected.pop();
     }
-
-    const [candidate, ...rest] = remaining;
-
-    if (!candidate) {
-      return;
-    }
-
-    if (selectedEffective + remainingEffective < target) {
-      return;
-    }
-
-    const nextRemainingEffective = remainingEffective - candidate.effective;
-
-    selected.push(candidate);
-    selectedEffective += candidate.effective;
-    selectedWeight += candidate.weight;
-
-    visit(rest, nextRemainingEffective);
-
-    selectedWeight -= candidate.weight;
-    selectedEffective -= candidate.effective;
-    selected.pop();
-
-    visit(rest, nextRemainingEffective);
   };
 
-  visit(candidates, availableEffective);
+  visit(0);
 
   const reason = iterations >= maxIterations ? "search-exhausted" : "insufficient-funds";
 
   return best ?? failure(request, prepared, reason);
 }
 
-export function selectSingleRandomDraw<TUtxo, TTarget>(
+function singleRandomDraw<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   const prepared = prepare(request);
@@ -501,40 +583,52 @@ export function selectSingleRandomDraw<TUtxo, TTarget>(
   );
 }
 
-export function selectKnapsack<TUtxo, TTarget>(
+function knapsack<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   const prepared = prepare(request);
   const candidates = prepared.optional.filter((unit) => unit.effective > 0n);
+  const funded = fundingCheck(request);
+  const required = totalsOf(prepared.required);
   const random = seededRandom(request.seed);
-  const rounds = Math.min(request.maxIterations ?? 1_000, 100_000);
+  const rounds = Math.min(request.maxIterations ?? KNAPSACK_MAX_ROUNDS, KNAPSACK_MAX_ROUNDS);
 
   let best: SelectionSuccess<TUtxo, TTarget> | undefined;
 
   for (let round = 0; round < rounds; round += 1) {
     const selected = [...prepared.required];
+    const totals = { ...required };
 
     for (const candidate of shuffled(candidates, random)) {
-      if (random() < 0.5) {
-        selected.push(candidate);
+      if (random() >= 0.5) {
+        continue;
+      }
+
+      selected.push(candidate);
+      addUnit(totals, candidate);
+
+      if (!funded(totals.value, totals.weight, totals.count)) {
+        continue;
       }
 
       const result = finalizeSelection(request, flatten(selected), "knapsack");
 
       if (result.ok) {
         best = betterResult(best, result);
-        break;
       }
+
+      break;
     }
   }
 
   const fallback = accumulate(request, "knapsack", "biggest");
 
   if (fallback.ok) {
-    best = betterResult(best, fallback);
+    return betterResult(best, fallback);
   }
 
-  return best ?? failure(request, prepared);
+  // The fallback's failure carries the precise reason (for example max weight).
+  return best ?? fallback;
 }
 
 function selectSplit<TUtxo, TTarget>(
@@ -545,16 +639,16 @@ function selectSplit<TUtxo, TTarget>(
     (unit) => unit.required || unit.effective > 0n,
   );
   const inputs = flatten(units);
-  const openIndex = request.targets.findIndex((target) => target.value === undefined);
+  const openTarget = request.targets.find((target) => target.value === undefined);
 
-  if (openIndex < 0) {
+  if (openTarget === undefined) {
     return failure(request, prepared);
   }
 
   const fixedValue = request.targets.reduce((sum, target) => sum + (target.value ?? 0n), 0n);
-  const { change: _change, ...withoutChange } = request;
+  const changeless = withoutChange(request);
   const baseResult = finalizeSelection(
-    withoutChange,
+    changeless,
     inputs,
     "split",
     request.targets.map(() => 0n),
@@ -566,14 +660,18 @@ function selectSplit<TUtxo, TTarget>(
 
   const fee = feeForWeight(baseResult.weight, request.feeRate);
   const openValue = sumValues(inputs) - fixedValue - fee;
+  const dust = relayDustThreshold(openTarget.weight, request.change?.dustRelayFeeRate ?? 3);
 
-  if (openValue < 0n) {
-    return failure(request, prepared);
+  if (openValue < dust) {
+    return {
+      ...failure(request, prepared),
+      message: `the send-all output would be ${String(openValue)} sats, below its ${String(dust)} sat dust threshold`,
+    };
   }
 
   const values = request.targets.map((target) => target.value ?? openValue);
 
-  return finalizeSelection(withoutChange, inputs, "split", values);
+  return finalizeSelection(changeless, inputs, "split", values);
 }
 
 function selectBreak<TUtxo, TTarget>(
@@ -634,17 +732,17 @@ function dispatch<TUtxo, TTarget>(
 
   switch (strategy) {
     case "best":
-      return selectBest(request);
+      return best(request);
     case "branch-and-bound":
     case "bnb":
-      return selectBranchAndBound(request);
+      return branchAndBound(request);
     case "coingrinder":
-      return selectCoinGrinder(request);
+      return coinGrinder(request);
     case "single-random-draw":
     case "srd":
-      return selectSingleRandomDraw(request);
+      return singleRandomDraw(request);
     case "knapsack":
-      return selectKnapsack(request);
+      return knapsack(request);
     case "blackjack":
       return blackjack(request, "blackjack", "biggest");
     case "split":
@@ -662,7 +760,15 @@ function dispatch<TUtxo, TTarget>(
   }
 }
 
-export function selectBest<TUtxo, TTarget>(
+/** When every strategy fails, the most specific reason wins: it tells the caller what to change. */
+const FAILURE_PRIORITY: Record<SelectionFailure["reason"], number> = {
+  "invalid-request": 3,
+  "max-weight-exceeded": 2,
+  "search-exhausted": 1,
+  "insufficient-funds": 0,
+};
+
+function best<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   const longTerm = request.longTermFeeRate ?? request.feeRate;
@@ -680,24 +786,26 @@ export function selectBest<TUtxo, TTarget>(
     strategies.push("coingrinder");
   }
 
-  let best: SelectionSuccess<TUtxo, TTarget> | undefined;
-  let lastFailure: SelectionFailure = {
-    ok: false,
-    reason: "insufficient-funds",
-    message: "no eligible strategy found a solution",
-  };
+  let winner: SelectionSuccess<TUtxo, TTarget> | undefined;
+  let bestFailure: SelectionFailure | undefined;
 
   for (const strategy of strategies) {
     const result = dispatch({ ...request, strategy, preferSingleScriptType: false });
 
     if (result.ok) {
-      best = betterResult(best, result);
-    } else {
-      lastFailure = result;
+      winner = betterResult(winner, result);
+    } else if (
+      bestFailure === undefined ||
+      FAILURE_PRIORITY[result.reason] > FAILURE_PRIORITY[bestFailure.reason]
+    ) {
+      bestFailure = result;
     }
   }
 
-  return best ?? lastFailure;
+  // Safe by construction: the shortlist is non-empty, so without a winner at
+  // least one failure was recorded.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return winner ?? bestFailure!;
 }
 
 function withSingleTypePreference<TUtxo, TTarget>(
@@ -710,7 +818,7 @@ function withSingleTypePreference<TUtxo, TTarget>(
       .filter((type): type is string => type !== undefined),
   );
 
-  let best: SelectionSuccess<TUtxo, TTarget> | undefined;
+  let winner: SelectionSuccess<TUtxo, TTarget> | undefined;
 
   for (const type of types) {
     const subset = request.utxos.filter(
@@ -723,11 +831,11 @@ function withSingleTypePreference<TUtxo, TTarget>(
     });
 
     if (result.ok) {
-      best = betterResult(best, result);
+      winner = betterResult(winner, result);
     }
   }
 
-  return best ?? dispatch({ ...request, preferSingleScriptType: false });
+  return winner ?? dispatch({ ...request, preferSingleScriptType: false });
 }
 
 /** Select UTXOs using the requested strategy (`best` by default). */
@@ -755,4 +863,45 @@ export function selectBlackjack<TUtxo, TTarget>(
   request: SelectionRequest<TUtxo, TTarget>,
 ): SelectionResult<TUtxo, TTarget> {
   return selectCoins({ ...request, strategy: "blackjack" });
+}
+
+/** Runs several strategies and returns the lowest-waste success (the `best` strategy). */
+export function selectBest<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionResult<TUtxo, TTarget> {
+  return selectCoins({ ...request, strategy: "best" });
+}
+
+/** Branch-and-Bound search for a changeless selection. Keeps the `bnb` alias as the result name. */
+export function selectBranchAndBound<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionResult<TUtxo, TTarget> {
+  return selectCoins({
+    ...request,
+    strategy: request.strategy === "bnb" ? "bnb" : "branch-and-bound",
+  });
+}
+
+/** CoinGrinder: the funding selection with the lowest input weight. */
+export function selectCoinGrinder<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionResult<TUtxo, TTarget> {
+  return selectCoins({ ...request, strategy: "coingrinder" });
+}
+
+/** Single Random Draw. Keeps the `srd` alias as the result name. */
+export function selectSingleRandomDraw<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionResult<TUtxo, TTarget> {
+  return selectCoins({
+    ...request,
+    strategy: request.strategy === "srd" ? "srd" : "single-random-draw",
+  });
+}
+
+/** Randomized subset passes compared with a largest-first fallback. */
+export function selectKnapsack<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionResult<TUtxo, TTarget> {
+  return selectCoins({ ...request, strategy: "knapsack" });
 }

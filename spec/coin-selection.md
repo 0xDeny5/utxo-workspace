@@ -7,7 +7,8 @@ This document defines language-neutral behavior. Normative terms MUST, SHOULD, a
 - All Bitcoin amounts MUST be signed integers in satoshis (base units).
 - Input and output sizes MUST be integer weight units (WU).
 - Fee rates are satoshis per virtual byte (sat/vB).
-- A fee for weight `w` and fee rate `r` is `ceil(w * r / 4)`.
+- A fee for weight `w` and fee rate `r` is `ceil(ceil(w / 4) * r)`: weight is rounded up to whole
+  virtual bytes first, as Bitcoin Core does, so that `fee / vsize >= r` always holds.
 - Implementations MUST avoid floating-point arithmetic on satoshi amounts.
 
 ## Candidate model
@@ -41,13 +42,26 @@ The default base weight is 34 WU: version and locktime at base serialization wei
 A candidate selection is first evaluated without change. If it funds the targets and minimum fee, it
 is valid.
 
-When a change policy is present, an implementation MUST calculate the fee with the additional change output. Change is created only when the remaining value is at least the configured dust threshold. If no explicit threshold is given:
+When a change policy is present, an implementation MUST calculate the fee with the additional change output. Change is created only when the remaining value is at least the minimum change:
 
 ```text
-dust = fee(changeOutputWeight + futureChangeSpendWeight, dustRelayFeeRate)
+minimumChange = max(dust, fee(futureChangeSpendWeight, longTermFeeRate) + 1)
 ```
 
-The default dust relay fee rate is 3 sat/vB. A smaller remainder is added to the transaction fee.
+A smaller remainder is added to the transaction fee: below the dust threshold the output would not relay, and below its own spending cost it would be worth less than nothing (Bitcoin Core's `min_viable_change`).
+
+If no explicit dust threshold is given:
+
+```text
+relayDust(outputWeight, rate) = ceil((ceil(outputWeight / 4) + spendVBytes) * rate)
+    spendVBytes = 67  when the scriptPubKey is 4, 22 or 34 bytes (P2A, P2WPKH, P2WSH/P2TR)
+    spendVBytes = 148 otherwise
+
+dust = max(relayDust(changeOutputWeight, dustRelayFeeRate),
+           fee(changeOutputWeight + futureChangeSpendWeight, dustRelayFeeRate))
+```
+
+`relayDust` is Bitcoin Core's `GetDustThreshold`; an output below it makes the transaction non-standard. The default dust relay fee rate is 3 sat/vB.
 
 ## Waste
 
@@ -77,13 +91,13 @@ High priority is `value * confirmations`. Pruned-FIFO removes candidates whose e
 
 ### Blackjack and exact/accumulative matrix
 
-Blackjack accumulates candidates only if they do not exceed the changeless target range. The matrix
+Blackjack accumulates candidates only if they do not exceed the changeless target range (the selection target through the cost of change), and always finalizes without change. The matrix
 first runs Blackjack with one of biggest, smallest, oldest, or newest order and falls back to an
 accumulator with an independently selected order.
 
 ### Branch-and-Bound
 
-BnB performs a bounded depth-first search over candidates sorted by descending effective value. It searches the range from the selection target through the cost of change, retains the lowest-waste changeless result, prunes branches that cannot reach the target, and skips equivalent candidate branches. The default iteration limit is 100,000.
+BnB performs a bounded depth-first search over candidates sorted by descending effective value, trying inclusion before exclusion. It searches the range from the selection target through the cost of change (`fee(changeOutputWeight, feeRate) + fee(futureChangeSpendWeight, longTermFeeRate)`), finalizes every solution without change, retains the lowest-waste result, and prunes branches that cannot reach the target. It skips including a candidate immediately after excluding the previous candidate when both have equal effective value and weight, since that branch repeats one already searched. The default iteration limit is 100,000; each visited node counts as one iteration.
 
 ### CoinGrinder
 
@@ -91,16 +105,18 @@ CoinGrinder performs a bounded search for the minimum input weight that funds th
 
 ### Single Random Draw and Knapsack
 
-SRD uses a seeded Fisher-Yates shuffle followed by accumulation. Knapsack runs seeded randomized
-subset passes and compares them with a largest-first fallback. Identical requests and seeds MUST
-return identical results.
+SRD uses a seeded Fisher-Yates shuffle followed by accumulation. Knapsack runs
+`min(maxIterations, 1000)` seeded randomized subset passes (1,000 by default) and compares them
+with a largest-first fallback. Identical requests with the same explicit seed MUST return identical
+results.
 
 #### PRNG contract
 
 Randomized strategies use a 32-bit xorshift generator. Ports MUST match this exactly:
 
-1. Let `state` be `seed` interpreted as an unsigned 32-bit integer. When `seed` is omitted, use
-   default `0x9e3779b9`.
+1. Let `state` be `seed` interpreted as an unsigned 32-bit integer. If that is `0` (a fixed point
+   of xorshift), use `0x9e3779b9` instead. When `seed` is omitted, implementations SHOULD draw it
+   from a cryptographically secure source so that randomized selection is not predictable.
 2. Each draw updates state as:
 
 ```text
@@ -117,7 +133,8 @@ state = state modulo 2^32
 ### Split and break
 
 Split spends all eligible economical inputs and assigns the post-fee remainder to exactly one
-valueless target (send-all). Break spends eligible inputs into as many outputs of the first target
+valueless target (send-all). It fails with `insufficient-funds` when that remainder is below
+`relayDust(openTargetWeight, dustRelayFeeRate)`. Break spends eligible inputs into as many outputs of the first target
 denomination as fit under fees and the maximum transaction weight.
 
 ### Best
@@ -134,7 +151,9 @@ Best runs a fixed shortlist and returns the minimum-waste success: Branch-and-Bo
 
 ## Failures
 
-Implementations return a discriminated result. Stable failure reasons are:
+Implementations return a discriminated result. When `best` finds no solution it reports the most
+specific failure among its strategies, in the order `invalid-request`, `max-weight-exceeded`,
+`search-exhausted`, `insufficient-funds`. Stable failure reasons are:
 
 - `invalid-request`
 - `insufficient-funds`

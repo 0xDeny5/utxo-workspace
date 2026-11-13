@@ -53,6 +53,7 @@ export {
   P2SH_P2WSH_MULTISIG,
   P2TR_SCRIPT,
   P2WSH_MULTISIG,
+  relayDustThreshold,
   resolveDustThreshold,
   weightToVBytes,
 } from "./weights";
