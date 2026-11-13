@@ -50,6 +50,16 @@
         "default": "./dist/weights.cjs"
       }
     },
+    "./compat": {
+      "import": {
+        "types": "./dist/compat.d.ts",
+        "default": "./dist/compat.js"
+      },
+      "require": {
+        "types": "./dist/compat.d.cts",
+        "default": "./dist/compat.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -3,6 +3,7 @@
   "name": "utxo-workspace",
   "entryPoints": [
     "packages/utxo-coinselect/src/index.ts",
+    "packages/utxo-coinselect/src/compat.ts",
     "packages/utxo-descriptors/src/index.ts"
   ],
   "entryPointStrategy": "resolve",

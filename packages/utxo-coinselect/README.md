@@ -12,6 +12,7 @@ You pass UTXOs, payment targets, and a fee rate; you get selected inputs, output
 - [Full selectCoins request](#full-selectcoins-request-every-option)
 - [Result shape](#result-shape)
 - [Examples](#examples)
+- [Migrating from coinselect](#migrating-from-coinselect)
 - [Weights](#weights)
 - [How selection works](#how-selection-works)
 - [Strategies](#strategies)
@@ -280,6 +281,58 @@ import {
   selectSingleRandomDraw,
 } from "utxo-coinselect";
 ```
+
+## Migrating from `coinselect`
+
+`utxo-coinselect/compat` is a drop-in replacement for [bitcoinjs/coinselect](https://github.com/bitcoinjs/coinselect): the same functions, arguments and result shape (plain numbers, your own objects back by reference, a bare `{ value }` change output, `inputs`/`outputs` left undefined on failure). It runs on this package's engine, so fees and dust follow Bitcoin Core. Migrating is an import change:
+
+```ts
+// before: import coinSelect from "coinselect";
+import { coinSelect } from "utxo-coinselect/compat";
+
+const { inputs, outputs, fee } = coinSelect(utxos, targets, feeRate);
+
+if (!inputs || !outputs) {
+  // not enough funds, as before
+}
+```
+
+| `coinselect`              | `utxo-coinselect/compat` |
+| ------------------------- | ------------------------ |
+| `coinselect`              | `coinSelect`             |
+| `coinselect/accumulative` | `accumulative`           |
+| `coinselect/blackjack`    | `blackjack`              |
+| `coinselect/split`        | `split`                  |
+| `coinselect/break`        | `broken`                 |
+
+CommonJS works too: `const { coinSelect } = require("utxo-coinselect/compat")`.
+
+What changes for the better:
+
+- **Fees match Bitcoin Core**: `ceil(vsize * feeRate)`, never below the requested rate. Fractional fee rates are accepted.
+- **Change is created only when it relays and is worth spending**: never below Core's dust limit, and never below its own future spending cost. coinselect uses `148 * feeRate` as its dust limit.
+- **Exact sizes when you give them**: coinselect prices every input and output as P2PKH unless you pass `script`. Add `weight` to price SegWit, Taproot and multisig correctly:
+
+```ts
+import { inputWeight, outputWeight } from "utxo-coinselect";
+import { coinSelect } from "utxo-coinselect/compat";
+
+const { inputs, outputs, fee } = coinSelect(
+  utxos.map((utxo) => ({ ...utxo, weight: inputWeight("p2wpkh") })),
+  [{ address, value: 50_000, weight: outputWeight("p2tr") }],
+  feeRate,
+  // optional 4th argument
+  {
+    changeOutputWeight: outputWeight("p2wpkh"),
+    changeSpendWeight: inputWeight("p2wpkh"),
+    strategy: "best", // default: coinselect's own Blackjack-then-accumulative
+  },
+);
+```
+
+- **Failures explain themselves**: an extra `error: { reason, message }` field. Invalid input (for example a fractional amount) returns `fee: NaN` with `reason: "invalid-request"`.
+
+Without `weight`, sizes follow coinselect's rule (`script.length`, or P2PKH when omitted), so the same inputs are usually selected. Fees and change can differ slightly because of the fixes above.
 
 ## Weights
 
