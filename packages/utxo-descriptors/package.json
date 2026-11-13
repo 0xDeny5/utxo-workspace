@@ -21,20 +21,36 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./parse": {
-      "types": "./dist/parse.d.ts",
-      "import": "./dist/parse.js",
-      "require": "./dist/parse.cjs"
+      "import": {
+        "types": "./dist/parse.d.ts",
+        "default": "./dist/parse.js"
+      },
+      "require": {
+        "types": "./dist/parse.d.cts",
+        "default": "./dist/parse.cjs"
+      }
     },
     "./weights": {
-      "types": "./dist/weights.d.ts",
-      "import": "./dist/weights.js",
-      "require": "./dist/weights.cjs"
-    }
+      "import": {
+        "types": "./dist/weights.d.ts",
+        "default": "./dist/weights.js"
+      },
+      "require": {
+        "types": "./dist/weights.d.cts",
+        "default": "./dist/weights.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
