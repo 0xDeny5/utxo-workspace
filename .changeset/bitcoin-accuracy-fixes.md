@@ -1,9 +1,9 @@
 ---
-"utxo-coinselect": minor
-"utxo-descriptors": minor
+"utxo-coinselect": major
+"utxo-descriptors": major
 ---
 
-Accuracy, performance and packaging fixes ahead of 1.0. Some results change, so review before upgrading.
+First stable release: accuracy, performance and packaging fixes. Some results change, so review before upgrading.
 
 `utxo-coinselect`
 
