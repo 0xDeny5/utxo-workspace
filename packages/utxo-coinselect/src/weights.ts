@@ -123,9 +123,18 @@ function pushDataPrefixBytes(length: number): number {
   return 5;
 }
 
-function multisigScriptBytes(n: number): number {
-  return 3 + 34 * n;
+/** Bytes used to push a small integer: OP_1..OP_16 are one opcode, larger values a 1-byte push. */
+function smallIntegerBytes(value: number): number {
+  return value <= 16 ? 1 : 2;
 }
+
+/** `<m> <pubkey>... <n> OP_CHECKMULTISIG` with compressed keys. */
+function multisigScriptBytes(m: number, n: number): number {
+  return smallIntegerBytes(m) + 34 * n + smallIntegerBytes(n) + 1;
+}
+
+/** Consensus limit for a single pushed element, which bounds a P2SH redeemScript. */
+const MAX_SCRIPT_ELEMENT_BYTES = 520;
 
 function validateMultisig(type: MultisigWeight): Required<MultisigWeight> {
   const m = assertInteger(type.m, "multisig m");
@@ -133,6 +142,12 @@ function validateMultisig(type: MultisigWeight): Required<MultisigWeight> {
 
   if (m < 1 || m > n || n > 20) {
     throw new RangeError("multisig must satisfy 1 <= m <= n <= 20");
+  }
+
+  if (type.type === "p2sh-multisig" && multisigScriptBytes(m, n) > MAX_SCRIPT_ELEMENT_BYTES) {
+    throw new RangeError(
+      `p2sh-multisig redeemScript exceeds ${String(MAX_SCRIPT_ELEMENT_BYTES)} bytes; use at most 15 keys`,
+    );
   }
 
   const signatureBytes = assertInteger(type.signatureBytes ?? 73, "signatureBytes");
@@ -202,7 +217,7 @@ export function inputWeight(input: InputType): Weight {
   }
 
   const { type, m, n, signatureBytes } = validateMultisig(input);
-  const scriptBytes = multisigScriptBytes(n);
+  const scriptBytes = multisigScriptBytes(m, n);
 
   if (type === "p2sh-multisig") {
     const scriptSig =
@@ -275,18 +290,64 @@ function decimalRatio(value: number): Decimal {
   return { numerator: BigInt(digits), denominator: 10n ** BigInt(scale) };
 }
 
-/** Calculate `ceil(weight / 4 * feeRate)` without floating-point amount math. */
+/**
+ * Fee for `weight` at `feeRate` sat/vB, matching how Bitcoin Core prices a
+ * transaction: `ceil(ceil(weight / 4) * feeRate)`. Rounding the weight up to
+ * whole virtual bytes first guarantees `fee / vsize >= feeRate`, which is how
+ * mempools measure a transaction's fee rate. No floating-point amount math.
+ */
 export function feeForWeight(weight: Weight, feeRate: number): bigint {
-  const { numerator, denominator } = decimalRatio(feeRate);
-  const scaled = BigInt(assertInteger(weight, "weight")) * numerator;
-  const divisor = 4n * denominator;
-
-  return (scaled + divisor - 1n) / divisor;
+  return feeForVBytes(weightToVBytes(weight), feeRate);
 }
 
-/** Bitcoin Core-style dust threshold for a future spendable output. */
+function feeForVBytes(vbytes: number, feeRate: number): bigint {
+  const { numerator, denominator } = decimalRatio(feeRate);
+  const scaled = BigInt(assertInteger(vbytes, "vbytes")) * numerator;
+
+  return (scaled + denominator - 1n) / denominator;
+}
+
+/** Bitcoin Core's spend-size assumptions in `GetDustThreshold` (policy/policy.cpp). */
+const CORE_WITNESS_SPEND_VBYTES = 32 + 4 + 1 + Math.floor(107 / 4) + 4;
+const CORE_LEGACY_SPEND_VBYTES = 32 + 4 + 1 + 107 + 4;
+/** scriptPubKey lengths of standard witness programs: P2A (4), P2WPKH (22), P2WSH/P2TR (34). */
+const WITNESS_PROGRAM_SCRIPT_BYTES = new Set([4, 22, 34]);
+
+function isWitnessProgramOutput(output: Weight): boolean {
+  if (output % 4 !== 0) {
+    return false;
+  }
+
+  // Standard scriptPubKeys are shorter than 253 bytes, so their CompactSize is 1 byte.
+  return WITNESS_PROGRAM_SCRIPT_BYTES.has(output / 4 - 8 - 1);
+}
+
+/**
+ * Bitcoin Core's relay dust threshold (`GetDustThreshold`) for an output of the
+ * given serialized weight. Outputs whose scriptPubKey length matches a standard
+ * witness program (P2WPKH, P2WSH, P2TR, P2A) use Core's 67 vB spend estimate;
+ * everything else uses the conservative 148 vB legacy estimate. An output
+ * below this value makes the transaction non-standard.
+ */
+export function relayDustThreshold(output: Weight, dustRelayFeeRate = 3): bigint {
+  const spend = isWitnessProgramOutput(output)
+    ? CORE_WITNESS_SPEND_VBYTES
+    : CORE_LEGACY_SPEND_VBYTES;
+
+  return feeForVBytes(weightToVBytes(output) + spend, dustRelayFeeRate);
+}
+
+/**
+ * Dust floor for a future spendable output: the larger of Bitcoin Core's relay
+ * dust threshold ({@link relayDustThreshold}) and the cost of creating plus
+ * spending the output at `dustRelayFeeRate`. It is never below what Core
+ * accepts for relay.
+ */
 export function dustThresholdFor(output: Weight, spend: Weight, dustRelayFeeRate = 3): bigint {
-  return feeForWeight(output + spend, dustRelayFeeRate);
+  const relay = relayDustThreshold(output, dustRelayFeeRate);
+  const economic = feeForWeight(output + spend, dustRelayFeeRate);
+
+  return relay > economic ? relay : economic;
 }
 
 export function resolveDustThreshold(policy: ChangePolicy): bigint {

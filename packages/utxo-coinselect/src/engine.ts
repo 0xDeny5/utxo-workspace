@@ -1,4 +1,5 @@
 import type {
+  ChangePolicy,
   SelectedOutput,
   SelectionFailure,
   SelectionRequest,
@@ -54,6 +55,10 @@ export function validateRequest<TUtxo, TTarget>(
   }
 
   for (const target of request.targets) {
+    if (target.value !== undefined && typeof target.value !== "bigint") {
+      return invalid("target values must be bigint satoshis (for example 1_000n)");
+    }
+
     if ((target.value ?? 0n) < 0n) {
       return invalid("target values cannot be negative");
     }
@@ -82,6 +87,10 @@ export function validateRequest<TUtxo, TTarget>(
 
     outpoints.add(key);
 
+    if (typeof utxo.value !== "bigint") {
+      return invalid(`UTXO ${key} value must be bigint satoshis (for example 1_000n)`);
+    }
+
     if (utxo.value < 0n) {
       return invalid(`UTXO ${key} has a negative value`);
     }
@@ -89,6 +98,57 @@ export function validateRequest<TUtxo, TTarget>(
     if (!Number.isSafeInteger(utxo.weight) || utxo.weight < 0) {
       return invalid(`UTXO ${key} has an invalid weight`);
     }
+  }
+
+  return validateOptions(request);
+}
+
+function isNonNegativeSafeInteger(value: unknown): boolean {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function validateOptions<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionFailure | undefined {
+  const { change } = request;
+
+  if (change !== undefined) {
+    if (!isNonNegativeSafeInteger(change.outputWeight)) {
+      return invalid("change.outputWeight must be a non-negative safe integer");
+    }
+
+    if (!isNonNegativeSafeInteger(change.spendWeight)) {
+      return invalid("change.spendWeight must be a non-negative safe integer");
+    }
+
+    if (
+      change.dustThreshold !== undefined &&
+      (typeof change.dustThreshold !== "bigint" || change.dustThreshold < 0n)
+    ) {
+      return invalid("change.dustThreshold must be a non-negative bigint");
+    }
+
+    if (
+      change.dustRelayFeeRate !== undefined &&
+      (!Number.isFinite(change.dustRelayFeeRate) || change.dustRelayFeeRate < 0)
+    ) {
+      return invalid("change.dustRelayFeeRate must be a finite non-negative number");
+    }
+  }
+
+  for (const [name, value] of [
+    ["baseWeight", request.baseWeight],
+    ["maxWeight", request.maxWeight],
+    ["maxIterations", request.maxIterations],
+    ["minConfirmations", request.minConfirmations],
+  ] as const) {
+    if (value !== undefined && !isNonNegativeSafeInteger(value)) {
+      return invalid(`${name} must be a non-negative safe integer`);
+    }
+  }
+
+  if (request.seed !== undefined && !Number.isSafeInteger(request.seed)) {
+    return invalid("seed must be a safe integer");
   }
 
   return undefined;
@@ -118,6 +178,50 @@ export function transactionWeight<TUtxo, TTarget>(
     sumWeights(inputs) +
     outputs.reduce((sum, output) => sum + output.weight, 0)
   );
+}
+
+/**
+ * Smallest change output worth creating: at least the dust threshold, and more
+ * than it will cost to spend later at the long-term fee rate. Mirrors Bitcoin
+ * Core's `min_viable_change`; a smaller remainder is left to the miner fee.
+ */
+export function minimumChange<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+  policy: ChangePolicy,
+): bigint {
+  const dust = resolveDustThreshold(policy);
+  const spendCost =
+    feeForWeight(policy.spendWeight, request.longTermFeeRate ?? request.feeRate) + 1n;
+
+  return dust > spendCost ? dust : spendCost;
+}
+
+/** The request with its change policy removed, for strategies that only build changeless transactions. */
+export function withoutChange<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): SelectionRequest<TUtxo, TTarget> {
+  const { change: _change, ...changeless } = request;
+
+  return changeless;
+}
+
+/**
+ * Cheap necessary condition for {@link finalizeSelection} to succeed: the
+ * inputs cover targets plus the changeless fee. Lets accumulating strategies
+ * track running totals instead of re-finalizing after every candidate.
+ */
+export function fundingCheck<TUtxo, TTarget>(
+  request: SelectionRequest<TUtxo, TTarget>,
+): (value: bigint, weight: Weight, count: number) => boolean {
+  const required = targetValue(request.targets);
+  const outputsWeight =
+    (request.baseWeight ?? DEFAULT_BASE_WEIGHT) +
+    compactSizeBytes(request.targets.length) * 4 +
+    request.targets.reduce((sum, target) => sum + target.weight, 0);
+
+  return (value, weight, count) =>
+    value - required >=
+    feeForWeight(outputsWeight + compactSizeBytes(count) * 4 + weight, request.feeRate);
 }
 
 export function effectiveValue<T>(utxo: Utxo<T>, feeRate: number): bigint {
@@ -193,7 +297,7 @@ export function finalizeSelection<TUtxo, TTarget>(
     const withChangeFee = feeForWeight(withChangeWeight, request.feeRate);
     const possibleChange = selectedValue - outputsValue - withChangeFee;
 
-    if (possibleChange >= resolveDustThreshold(request.change)) {
+    if (possibleChange >= minimumChange(request, request.change)) {
       change = possibleChange;
       finalWeight = withChangeWeight;
       outputs = [...outputs, { ...provisionalChange, value: change }];
@@ -207,6 +311,8 @@ export function finalizeSelection<TUtxo, TTarget>(
       ok: false,
       reason: "max-weight-exceeded",
       message: `transaction weight ${String(finalWeight)} exceeds limit ${String(maxWeight)}`,
+      available: selectedValue,
+      required: outputsValue + noChangeMinimumFee,
     };
   }
 

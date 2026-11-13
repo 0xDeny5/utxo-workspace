@@ -150,18 +150,18 @@ const result = selectCoins({
     outputWeight: outputWeight("p2tr"),
     // required when `change` is set — weight to spend that change later
     spendWeight: inputWeight("p2tr"),
-    // optional — explicit dust floor in sats (default derived from dustRelayFeeRate)
+    // optional — explicit dust floor in sats (default: never below Bitcoin Core's relay dust limit)
     dustThreshold: undefined,
-    // optional — sat/vB used to derive dust (default 3, Core-style)
+    // optional — sat/vB used to derive dust (default 3, Bitcoin Core's dust relay fee)
     dustRelayFeeRate: 3,
   },
   // optional — fixed tx overhead WU excluding vin/vout CompactSize (default 34)
   baseWeight: 34,
   // optional — max total tx weight (default 400_000)
   maxWeight: 400_000,
-  // optional — search budget for BnB / CoinGrinder (default 100_000)
+  // optional — search budget for BnB / CoinGrinder (default 100_000); Knapsack runs at most 1_000 rounds
   maxIterations: 100_000,
-  // optional — RNG seed for deterministic srd / knapsack / best
+  // optional — RNG seed for reproducible srd / knapsack / best (omit for a fresh random seed)
   seed: 42,
   // optional — skip non-required UTXOs below this confirmation count
   minConfirmations: 1,
@@ -296,6 +296,7 @@ import {
   feeForWeight,
   weightToVBytes,
   dustThresholdFor,
+  relayDustThreshold,
 } from "utxo-coinselect";
 
 // ── Input weights (spend cost) ──────────────────────────────────────────
@@ -307,7 +308,7 @@ inputWeight("p2sh-p2wpkh"); // nested SegWit (P2SH-P2WPKH)
 inputWeight("p2tr"); // Taproot key-path spend (cheapest Taproot case)
 
 // Multisig (m-of-n). Optional signatureBytes defaults to a conservative max ECDSA size.
-inputWeight(P2SH_MULTISIG(2, 3)); // legacy P2SH multisig
+inputWeight(P2SH_MULTISIG(2, 3)); // legacy P2SH multisig (at most 15 keys: 520-byte redeemScript limit)
 inputWeight(P2WSH_MULTISIG(2, 3)); // native P2WSH multisig
 inputWeight(P2SH_P2WSH_MULTISIG(2, 3)); // nested P2SH-P2WSH multisig
 inputWeight({ ...P2WSH_MULTISIG(2, 3), signatureBytes: 72 });
@@ -343,8 +344,9 @@ outputWeight({ type: "raw", scriptPubKeyBytes: 34 }); // custom scriptPubKey len
 // ── Related helpers ─────────────────────────────────────────────────────
 
 weightToVBytes(272); // WU -> vbytes (ceil)
-feeForWeight(272, 5); // ceil(weight/4 * feeRate) as bigint sats
-dustThresholdFor(outputWeight("p2wpkh"), inputWeight("p2wpkh")); // Core-style dust
+feeForWeight(272, 5); // ceil(ceil(weight / 4) * feeRate) as bigint sats, like Bitcoin Core
+relayDustThreshold(outputWeight("p2tr")); // 330n: Bitcoin Core's GetDustThreshold at 3 sat/vB
+dustThresholdFor(outputWeight("p2wpkh"), inputWeight("p2wpkh")); // change floor, never below relay dust
 ```
 
 ### Taproot options (`P2TR_SCRIPT`)
@@ -363,7 +365,7 @@ Key-path spends use `inputWeight("p2tr")` — no `P2TR_SCRIPT`. Script-path spen
 
 1. Each UTXO has an **effective value**: `value − fee(inputWeight, feeRate)`.
 2. Strategies search for a set of inputs that funds the targets plus fees.
-3. Change is created only when the leftover is above the dust threshold; otherwise the leftover is added to the miner fee (changeless).
+3. Change is created only when the leftover is at least the dust threshold **and** worth more than it will cost to spend later at `longTermFeeRate`; otherwise the leftover is added to the miner fee (changeless). Fees are `ceil(vsize * feeRate)`, so the transaction never pays below the requested rate.
 4. Candidates are compared with the **waste metric** (changeful vs changeless forms), so "better" means lower long-term fee cost, not only "first solution found".
 
 Normative behavior lives in [spec/coin-selection.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/coin-selection.md). Shared golden cases live in [test-vectors/](https://github.com/0xDeny5/utxo-workspace/tree/main/test-vectors/).
@@ -414,10 +416,10 @@ There are 16 matrix names of the form `exact-{biggest|smallest|oldest|newest}/ac
 
 ### Distribution helpers
 
-| Name    | Short explanation                                          |
-| ------- | ---------------------------------------------------------- |
-| `split` | Send-all / even remainder into one valueless target output |
-| `break` | Break funded value into equal denomination outputs         |
+| Name    | Short explanation                                                                    |
+| ------- | ------------------------------------------------------------------------------------ |
+| `split` | Send-all: the remainder goes to the one valueless target (fails if it would be dust) |
+| `break` | Break funded value into equal denomination outputs                                   |
 
 ### Choosing a strategy quickly
 
@@ -430,7 +432,7 @@ There are 16 matrix names of the form `exact-{biggest|smallest|oldest|newest}/ac
 | Deterministic, explainable ordering            | `largest-first`, `oldest-first`, ... |
 | Send entire wallet balance                     | `split`                              |
 
-Randomized strategies (`srd`, `knapsack`, and anything that uses them inside `best`) accept `seed` and are **deterministic for the same request + seed**.
+Randomized strategies (`srd`, `knapsack`, and anything that uses them inside `best`) accept `seed` and are **deterministic for the same request + seed**. Without a seed they draw one from `crypto.getRandomValues`, so selections are not predictable by default — pass a seed in tests or when you need reproducible results.
 
 ## Coin control and privacy
 

@@ -35,9 +35,11 @@ Out of scope for v1, stated so expectations are set correctly:
   - `wsh()` may wrap `pk()`, `pkh()`, or `multi()`/`sortedmulti()`; nesting another `sh()`, `wsh()`, or `tr()` inside `wsh()` is rejected.
   - Compressed-only key material is required directly under `wsh(...)` (uncompressed keys inside `wsh()` are rejected per BIP-382/385).
   - x-only key material (no `02`/`03`/`04` prefix) is accepted only under `tr()`; every other script expression requires a prefixed key.
-  - Key count limits: a `multi()`/`sortedmulti()` at the top level or directly under `sh()` allows at most 15 keys; under `wsh()` (including `sh(wsh(...))`) at most 20 keys; a bare top-level `multi()` follows the top-level limit of 3 per BIP-383's non-`sh`/`wsh` case as implemented here.
-- Key origins (`[fingerprint/path]key`) MUST be validated structurally: an 8-character lowercase-hex fingerprint, and a path of `/`-separated steps each either a plain index, a hardened index (`'`, `h`, or `H` suffix), or, at the tail, a BIP-389 multipath group.
-- Multipath groups (`<a;b;...>`) are valid only as a single path step; a descriptor mixing a multipath group with further path steps after it is otherwise parsed normally, since the tail-position rule applies to the multipath step itself, not to what follows.
+  - Keys under `tr()` (internal key and leaves) MUST be x-only or compressed; uncompressed hex and uncompressed WIF keys are rejected (BIP-386).
+  - A `tr()` script tree MUST NOT be deeper than 128 levels (BIP-341/386).
+  - Key count limits: a bare top-level `multi()`/`sortedmulti()` allows at most 3 keys (Bitcoin Core's bare-multisig limit); directly under `sh()` at most 15 keys, and the redeemScript MUST NOT exceed 520 bytes (so at most 7 uncompressed keys); under `wsh()` (including `sh(wsh(...))`) at most 20 keys.
+- Key origins (`[fingerprint/path]key`) MUST be validated structurally: an 8-character hex fingerprint (either case, normalized to lowercase), and a path of `/`-separated steps each either a plain index or a hardened index (`'` or `h` suffix).
+- The derivation path after an extended key may contain at most one BIP-389 multipath group (`<a;b;...>`), at any position; further plain steps may follow it, and the path may end in `/*`. A second multipath group in the same key expression is rejected.
 
 ## Multipath expansion
 
@@ -50,7 +52,8 @@ Out of scope for v1, stated so expectations are set correctly:
 
 All sizes are conservative maximums, matching the constants `utxo-coinselect` uses for its named catalog entries, so that agreement is possible in the first place:
 
-- ECDSA signatures: 72 bytes for a single-key spend, 73 bytes for each signature inside a multisig satisfaction (both include the low-S DER upper bound plus a trailing sighash byte).
+- ECDSA signatures: 72 bytes for a single-key spend (the low-S DER maximum of 71 bytes plus a sighash byte), 73 bytes for each signature inside a multisig satisfaction (one byte of extra margin, matching `utxo-coinselect`'s multisig default).
+- `multi()` scripts encode `m` and `n` as `OP_1`..`OP_16` when at most 16 and as a 2-byte push otherwise.
 - Schnorr signatures: 64 bytes for a Taproot key-path spend under `SIGHASH_DEFAULT`, 65 bytes for a Taproot script-path spend (includes a non-default sighash byte).
 - Public key material: 33 bytes compressed (including WIF-compressed and extended keys, which always yield compressed public keys), 65 bytes uncompressed, 32 bytes x-only.
 - `inputWeight()` returns the absolute input weight, in weight units, under **segwit transaction serialization** — i.e. it always includes the marker/flag overhead's effect on how witness data is counted, matching `utxo-coinselect`'s existing `inputWeight("p2wpkh")` convention. It does not accept and does not need a transaction-wide "is this tx segwit" flag: a legacy-only transaction's fee estimate from these weights is conservative (an overestimate by the small marker/flag/witness-count saving), never an underestimate.
@@ -58,17 +61,19 @@ All sizes are conservative maximums, matching the constants `utxo-coinselect` us
 - Taproot script-path spends with multiple leaves use the maximum witness size across all leaves (deepest control block, one signature), since the caller does not know in advance which leaf will be used to spend.
 - `raw()` and `addr()` price only as outputs, never as inputs: their spending script is unknown, so `inputWeight()` on either MUST fail with reason `opaque-script` rather than guessing. `outputWeight()` succeeds for both, because a scriptPubKey's byte length (or an address's decoded payload length) is knowable without knowing how it will ever be spent.
 - `combo()` represents several candidate script types simultaneously (bare key, P2PKH, P2WPKH, and P2SH-P2WPKH all share one key). Both `inputWeight()` and `outputWeight()` MUST fail with reason `ambiguous-script-type`, directing the caller to describe the specific script they intend to use.
+- A bech32/bech32m `addr()` MUST carry the chain's human-readable part, a witness version of at most 16, a 2..40-byte program (exactly 20 or 32 bytes for version 0), and at most 90 characters; anything else fails with `unsupported`.
 - Address decoding for `addr()` verifies bech32/bech32m checksums (no hashing required) but does **not** verify base58check's SHA256d checksum, since computing it would require a hash implementation this package deliberately does not carry. A version byte or witness program that decodes structurally but does not match any of the chain's known prefixes MUST fail with reason `unsupported`.
 
 ## `describeInput()` / `describeOutput()`
 
 - `describeInput()` and `describeOutput()` map a parsed script node to a value structurally assignable to `utxo-coinselect`'s `InputType`/`OutputType` unions, without either package importing the other.
 - Every script expression that `inputWeight()`/`outputWeight()` can price MUST also have a `describeInput()`/`describeOutput()` result; the two MUST fail for exactly the same inputs and for the same reasons.
+- Named catalog entries (`"p2pk"`, `"p2pkh"`, multisig shapes) assume compressed keys. A script that uses any uncompressed key MUST be described with the `{ type: "raw", ... }` shape instead.
 - A script shape with no named catalog entry (e.g. a bare top-level `multi()`, or an `addr()`/`raw()` output) MUST fall back to an explicit `{ type: "raw", ... }` shape carrying the byte counts needed to reconstruct its weight, rather than being dropped or approximated.
 
 ## Chain parameters
 
-- Chain-specific data (BIP-32 extended-key version bytes, base58 P2PKH/P2SH version bytes, bech32 human-readable part) MUST be supplied as a plain data object, not hardcoded per chain in the parser or tokenizer. Bitcoin mainnet is the default; Bitcoin testnet/signet/regtest and Litecoin mainnet presets are provided.
+- Chain-specific data (BIP-32 extended-key version bytes, base58 P2PKH/P2SH version bytes, bech32 human-readable part) MUST be supplied as a plain data object, not hardcoded per chain in the parser or tokenizer. Bitcoin mainnet is the default; presets are provided for Bitcoin testnet (also used for signet and testnet4), Bitcoin regtest, Litecoin, and Litecoin testnet.
 
 ## Conformance
 

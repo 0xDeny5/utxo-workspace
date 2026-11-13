@@ -16,6 +16,13 @@ import type {
 
 const CHECKSUM_LENGTH = 8;
 const HEX_PAIR = 2;
+/** BIP-341/386: a tapscript tree is at most 128 levels deep. */
+const MAX_TAPTREE_DEPTH = 128;
+/** Consensus limit for a pushed element, which bounds a P2SH redeemScript. */
+const MAX_SCRIPT_ELEMENT_BYTES = 520;
+const SMALL_INTEGER_OPCODE_MAX = 16;
+const COMPRESSED_PUBKEY_BYTES = 33;
+const UNCOMPRESSED_PUBKEY_BYTES = 65;
 
 type Context = { readonly place: "top" } | { readonly place: "sh" } | { readonly place: "wsh" };
 
@@ -33,6 +40,25 @@ function keyLimit(context: Context): number {
 
 function requireCompressed(context: Context): boolean {
   return context.place === "wsh";
+}
+
+function isUncompressed(key: KeyExpression): boolean {
+  return key.kind === "hex-uncompressed" || key.kind === "wif-uncompressed";
+}
+
+function smallIntegerBytes(value: number): number {
+  return value <= SMALL_INTEGER_OPCODE_MAX ? 1 : 2;
+}
+
+/** Serialized size of `<m> <keys...> <n> OP_CHECKMULTISIG`. */
+function multisigScriptBytes(threshold: number, keys: readonly KeyExpression[]): number {
+  const keyBytes = keys.reduce(
+    (sum, key) =>
+      sum + 1 + (isUncompressed(key) ? UNCOMPRESSED_PUBKEY_BYTES : COMPRESSED_PUBKEY_BYTES),
+    0,
+  );
+
+  return smallIntegerBytes(threshold) + keyBytes + smallIntegerBytes(keys.length) + 1;
 }
 
 function isCompressedCapable(key: KeyExpression): boolean {
@@ -71,7 +97,8 @@ function fail(reason: ParseFailureReason, message: string, position?: number): P
 }
 
 type NodeResult = { readonly ok: true; readonly node: ScriptNode } | ParseFailure;
-type KeyResult = { readonly ok: true; readonly key: KeyExpression } | ParseFailure;
+type KeyResult =
+  { readonly ok: true; readonly key: KeyExpression; readonly position: number } | ParseFailure;
 type TreeResult = { readonly ok: true; readonly tree: TapTree } | ParseFailure;
 
 type TokenResult = { readonly ok: true; readonly token: Token } | ParseFailure;
@@ -94,6 +121,21 @@ function isFailure(value: { readonly ok: boolean }): value is ParseFailure {
   return !value.ok;
 }
 
+/** Taproot keys (BIP-386) must be x-only or compressed. */
+function parseTaprootKey(cursor: Cursor): KeyResult {
+  const keyResult = parseKey(cursor, true);
+
+  if (!isFailure(keyResult) && isUncompressed(keyResult.key)) {
+    return fail(
+      "invalid-key-expression",
+      "uncompressed keys are not allowed in tr()",
+      keyResult.position,
+    );
+  }
+
+  return keyResult;
+}
+
 function parseKey(cursor: Cursor, allowXOnly: boolean): KeyResult {
   const token = cursor.advance();
 
@@ -114,7 +156,7 @@ function parseKey(cursor: Cursor, allowXOnly: boolean): KeyResult {
     return fail("invalid-key-expression", result.message, token.position);
   }
 
-  return { ok: true, key: result.key };
+  return { ok: true, key: result.key, position: token.position };
 }
 
 function parseNumber(cursor: Cursor): { readonly ok: true; readonly value: number } | ParseFailure {
@@ -218,6 +260,16 @@ function parseMultiNode(
     return fail("invalid-context", "threshold must be between 1 and the number of keys", position);
   }
 
+  const scriptBytes = multisigScriptBytes(thresholdResult.value, keys);
+
+  if (context.place === "sh" && scriptBytes > MAX_SCRIPT_ELEMENT_BYTES) {
+    return fail(
+      "key-count-exceeded",
+      `sh() redeemScript would be ${String(scriptBytes)} bytes, above the ${String(MAX_SCRIPT_ELEMENT_BYTES)}-byte limit`,
+      position,
+    );
+  }
+
   return { ok: true, node: { kind: "multi", threshold: thresholdResult.value, keys, sorted } };
 }
 
@@ -245,7 +297,7 @@ function parseTapLeaf(cursor: Cursor): TreeResult {
     return lparen;
   }
 
-  const keyResult = parseKey(cursor, true);
+  const keyResult = parseTaprootKey(cursor);
 
   if (isFailure(keyResult)) {
     return keyResult;
@@ -262,11 +314,21 @@ function parseTapLeaf(cursor: Cursor): TreeResult {
   return { ok: true, tree: { kind: "leaf", script: leaf } };
 }
 
-function parseTapTree(cursor: Cursor): TreeResult {
-  if (cursor.peek()?.kind === "lbrace") {
+function parseTapTree(cursor: Cursor, depth: number): TreeResult {
+  const brace = cursor.peek();
+
+  if (brace?.kind === "lbrace") {
+    if (depth >= MAX_TAPTREE_DEPTH) {
+      return fail(
+        "invalid-context",
+        `tapscript tree depth exceeds ${String(MAX_TAPTREE_DEPTH)}`,
+        brace.position,
+      );
+    }
+
     cursor.advance();
 
-    const leftResult = parseTapTree(cursor);
+    const leftResult = parseTapTree(cursor, depth + 1);
 
     if (isFailure(leftResult)) {
       return leftResult;
@@ -278,7 +340,7 @@ function parseTapTree(cursor: Cursor): TreeResult {
       return comma;
     }
 
-    const rightResult = parseTapTree(cursor);
+    const rightResult = parseTapTree(cursor, depth + 1);
 
     if (isFailure(rightResult)) {
       return rightResult;
@@ -297,7 +359,7 @@ function parseTapTree(cursor: Cursor): TreeResult {
 }
 
 function parseTr(cursor: Cursor): NodeResult {
-  const keyResult = parseKey(cursor, true);
+  const keyResult = parseTaprootKey(cursor);
 
   if (isFailure(keyResult)) {
     return keyResult;
@@ -315,7 +377,7 @@ function parseTr(cursor: Cursor): NodeResult {
     return comma;
   }
 
-  const treeResult = parseTapTree(cursor);
+  const treeResult = parseTapTree(cursor, 0);
 
   if (isFailure(treeResult)) {
     return treeResult;

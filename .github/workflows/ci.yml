@@ -35,6 +35,7 @@ jobs:
       - run: pnpm test
       - run: pnpm coverage
       - run: pnpm build
+      - run: pnpm lint:packages
       - run: pnpm size
 
   mutation:

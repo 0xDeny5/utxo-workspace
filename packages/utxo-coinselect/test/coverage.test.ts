@@ -191,6 +191,7 @@ describe("coverage of strategy edge paths", () => {
     const { change: _change, ...withoutChange } = makeRequest([coin("exact", 1_110n)], "blackjack");
 
     expect(selectCoins(withoutChange)).toMatchObject({ ok: true, change: 0n });
+    // Change that costs more to spend later than it is worth stays in the fee.
     expect(
       selectCoins({
         ...makeRequest([coin("change", 5_000n)], "blackjack"),
@@ -200,7 +201,7 @@ describe("coverage of strategy edge paths", () => {
           dustThreshold: 1n,
         },
       }),
-    ).toMatchObject({ ok: false });
+    ).toMatchObject({ ok: true, change: 0n });
   });
 
   it("covers BnB clone pruning, bounds, and finalization rejection", () => {

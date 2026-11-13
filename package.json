@@ -12,7 +12,7 @@
     "benchmark": "tsx benchmarks/compare.ts",
     "build": "pnpm -r build",
     "changeset": "changeset",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm lint:packages",
     "commitlint": "commitlint",
     "coverage": "pnpm -r coverage",
     "docs": "typedoc",
@@ -22,6 +22,7 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "lint-staged": "lint-staged",
+    "lint:packages": "pnpm -r --filter \"./packages/*\" exec publint --strict && pnpm -r --filter \"./packages/*\" exec attw --pack . --profile node16",
     "mutation": "pnpm -r mutation",
     "prepare": "husky",
     "release": "pnpm check && pnpm coverage && changeset publish",
@@ -31,6 +32,7 @@
     "version-packages": "changeset version"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@bitcoinerlab/coinselect": "^2.0.1",
     "@bitcoinerlab/descriptors": "^3.1.7",
     "@bitcoinerlab/secp256k1": "^1.2.0",
@@ -53,6 +55,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.1.0",
     "prettier": "^3.9.5",
+    "publint": "0.3.25",
     "size-limit": "^12.1.0",
     "tinybench": "^6.0.2",
     "tsup": "^8.5.1",

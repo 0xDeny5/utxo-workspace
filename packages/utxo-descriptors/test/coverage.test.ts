@@ -5,6 +5,7 @@ import { bech32Decode, convertBits } from "../src/bech32";
 import { parseDescriptor } from "../src/parse";
 import type { ScriptNode } from "../src/types";
 import { compactSizeBytes, inputWeight, outputWeight, pushDataPrefixBytes } from "../src/weights";
+import { bech32Encode } from "./helpers/bech32";
 
 const KEY_A = "02cb674fe0ea2e1e8f79a4e518b8b8ecdff7869f93998fd985637e1317e856da07";
 const KEY_B = "03ec2566e4d0b33ed59d5b0ee8c4d0628a776d9d380ac877cfef116d7b6b54c867";
@@ -23,50 +24,6 @@ function expectParseFailure(descriptor: string, reason: string): void {
   const result = parseDescriptor(descriptor);
 
   expect(result).toMatchObject({ ok: false, reason });
-}
-
-/**
- * A minimal bech32/bech32m encoder, kept local to this test file, used only
- * to construct the malformed addresses needed to exercise `bech32Decode`'s
- * defensive branches (invalid character, invalid checksum, missing witness
- * version, wrong constant for the version, and program-length bounds).
- */
-const BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-const BECH32_GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
-
-function bech32Polymod(values: readonly number[]): number {
-  let checksum = 1;
-
-  for (const value of values) {
-    const top = checksum >>> 25;
-
-    checksum = ((checksum & 0x1ffffff) << 5) ^ value;
-
-    for (const [bit, generatorValue] of BECH32_GENERATOR.entries()) {
-      if (((top >>> bit) & 1) === 1) {
-        checksum ^= generatorValue;
-      }
-    }
-  }
-
-  return checksum >>> 0;
-}
-
-function bech32HrpExpand(hrp: string): number[] {
-  const high = Array.from(hrp, (char) => (char.codePointAt(0) ?? 0) >> 5);
-  const low = Array.from(hrp, (char) => (char.codePointAt(0) ?? 0) & 31);
-
-  return [...high, 0, ...low];
-}
-
-function bech32Encode(hrp: string, words: readonly number[], useBech32m: boolean): string {
-  const targetConst = useBech32m ? 0x2bc830a3 : 1;
-  const polymodInput = [...bech32HrpExpand(hrp), ...words, 0, 0, 0, 0, 0, 0];
-  const mod = bech32Polymod(polymodInput) ^ targetConst;
-  const checksumWords = Array.from({ length: 6 }, (_, index) => (mod >>> (5 * (5 - index))) & 31);
-  const dataChars = [...words, ...checksumWords].map((word) => BECH32_CHARSET[word] ?? "").join("");
-
-  return `${hrp}1${dataChars}`;
 }
 
 describe("base58 and bech32 edge cases", () => {

@@ -25,6 +25,14 @@ export const BITCOIN_TESTNET: ChainParams = {
   base58ScriptHash: 0xc4,
 };
 
+/** Bitcoin regtest. Signet and testnet4 share testnet's prefixes, so use BITCOIN_TESTNET for them. */
+export const BITCOIN_REGTEST: ChainParams = {
+  name: "bitcoin-regtest",
+  bech32Hrp: "bcrt",
+  base58PubKeyHash: 0x6f,
+  base58ScriptHash: 0xc4,
+};
+
 export const LITECOIN: ChainParams = {
   name: "litecoin",
   bech32Hrp: "ltc",
