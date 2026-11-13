@@ -100,6 +100,8 @@ const result = selectCoins({
 
 Both `inputWeight()` and `outputWeight()` return a result object, so pass `.weight` (a number) to `selectCoins()`, not the result itself.
 
+Scripts that use uncompressed keys are described with the exact `{ type: "raw", ... }` shape, because `utxo-coinselect`'s named entries (`"p2pkh"`, multisig shapes) assume compressed keys.
+
 `describeInput()`/`describeOutput()` return values that are structurally assignable to `utxo-coinselect`'s `InputType`/`OutputType`, verified by a repo-local cross-package test — see [the runnable version of this example](https://github.com/0xDeny5/utxo-workspace/blob/main/examples/node/descriptors.ts).
 
 ## Supported grammar
@@ -107,9 +109,9 @@ Both `inputWeight()` and `outputWeight()` return a result object, so pass `.weig
 - Key expressions: raw hex (compressed, uncompressed, x-only), WIF, and extended `xpub`/`xprv` (Bitcoin) or `tpub`/`tprv` (testnet), each with an optional `[fingerprint/path]` origin and an optional derivation path, including a trailing ranged `/*`.
 - Script expressions: `pk()`, `pkh()`, `wpkh()`, `combo()`, `sh()`, `wsh()`, `multi()`/`sortedmulti()`, `raw()`, `addr()`, and `tr()` — key-path only or with a script-path tree of `pk()` leaves.
 - The BIP-380 checksum: `checksumCreate()` and `checksumVerify()`, exported directly for callers that only need checksum handling.
-- `addr()` output weight decodes base58 version bytes for Bitcoin mainnet by default. Pass a chain to `outputWeight()`/`describeOutput()` for other networks, e.g. `outputWeight(script, { chain: BITCOIN_TESTNET })`. `BITCOIN`, `BITCOIN_TESTNET`, `LITECOIN`, and `LITECOIN_TESTNET` are exported, and any other chain is a plain `ChainParams` object.
+- `addr()` output weight checks the address against Bitcoin mainnet by default (bech32 prefix and base58 version bytes). Pass a chain to `outputWeight()`/`describeOutput()` for other networks, e.g. `outputWeight(script, { chain: BITCOIN_TESTNET })`. `BITCOIN`, `BITCOIN_TESTNET` (also for signet and testnet4), `BITCOIN_REGTEST`, `LITECOIN`, and `LITECOIN_TESTNET` are exported, and any other chain is a plain `ChainParams` object.
 
-Every context and key-count rule from BIP-381 through BIP-386 (for example: compressed-only keys under `wsh()`, x-only-only keys under `tr()`, `sh()`/`combo()`/`raw()`/`addr()`/`tr()` valid only at the top level) is enforced by the parser, not left to weight computation. See [spec/descriptors.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/descriptors.md) for the normative rules.
+The parser enforces the context and key-count rules of BIP-381 through BIP-386 and BIP-389, not weight computation: for example compressed-only keys under `wsh()`, x-only or compressed keys under `tr()`, a tapscript tree at most 128 levels deep, a `sh()` redeemScript of at most 520 bytes, one multipath group per key, and `sh()`/`combo()`/`raw()`/`addr()`/`tr()` only at the top level. See [spec/descriptors.md](https://github.com/0xDeny5/utxo-workspace/blob/main/spec/descriptors.md) for the normative rules.
 
 ## Multipath
 

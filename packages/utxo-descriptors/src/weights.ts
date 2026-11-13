@@ -2,7 +2,7 @@ import { base58Decode } from "./base58";
 import { bech32Decode } from "./bech32";
 import type { ChainParams } from "./chains";
 import { BITCOIN } from "./chains";
-import { collectTapLeaves } from "./traverse";
+import { collectTapLeaves, forEachKey } from "./traverse";
 import type {
   KeyMaterialKind,
   ScriptNode,
@@ -37,6 +37,7 @@ const PUSHDATA_UINT16_MAX = 0xffff;
 const COMPACT_SIZE_UINT16_MIN = 253;
 const COMPACT_SIZE_UINT16_MAX = 0xffff;
 const COMPACT_SIZE_UINT32_MAX = 0xffff_ffff;
+const SMALL_INTEGER_OPCODE_MAX = 16;
 
 function weightFail(reason: WeightFailureReason, message: string): WeightFailure {
   return { ok: false, reason, message };
@@ -74,6 +75,11 @@ export function pushDataPrefixBytes(length: number): number {
   }
 
   return 5;
+}
+
+/** Bytes used to push a small integer: OP_1..OP_16 are one opcode, larger values a 1-byte push. */
+function smallIntegerBytes(value: number): number {
+  return value <= SMALL_INTEGER_OPCODE_MAX ? 1 : 2;
 }
 
 function keyMaterialBytes(kind: KeyMaterialKind): number {
@@ -118,7 +124,8 @@ function simpleOutputScriptBytes(node: SimpleOutputNode): number {
         return sum + pushDataPrefixBytes(bytes) + bytes;
       }, 0);
 
-      return 1 + perKey + 2;
+      // <m> <keys...> <n> OP_CHECKMULTISIG
+      return smallIntegerBytes(node.threshold) + perKey + smallIntegerBytes(node.keys.length) + 1;
     }
   }
 }
@@ -343,6 +350,13 @@ function decodeAddressScriptBytes(
   const segwit = bech32Decode(address);
 
   if (segwit !== undefined) {
+    if (segwit.hrp !== chain.bech32Hrp) {
+      return weightFail(
+        "unsupported",
+        `address prefix '${segwit.hrp}' does not match chain '${chain.name}' (expected '${chain.bech32Hrp}')`,
+      );
+    }
+
     return { ok: true, value: 2 + segwit.program.length };
   }
 
@@ -452,6 +466,17 @@ export function describeInput(node: ScriptNode): DescribeInputResult {
     return cost;
   }
 
+  const raw: DescribeInputResult = {
+    ok: true,
+    description: { type: "raw", scriptSigBytes: cost.scriptSig, witnessBytes: cost.witness },
+  };
+
+  // utxo-coinselect's named catalog entries assume compressed keys; anything
+  // else is described by its exact byte counts instead.
+  if (!usesOnlyCompressedKeys(node)) {
+    return raw;
+  }
+
   if (node.kind === "pk") {
     return { ok: true, description: "p2pk" };
   }
@@ -497,10 +522,19 @@ export function describeInput(node: ScriptNode): DescribeInputResult {
     };
   }
 
-  return {
-    ok: true,
-    description: { type: "raw", scriptSigBytes: cost.scriptSig, witnessBytes: cost.witness },
-  };
+  return raw;
+}
+
+function usesOnlyCompressedKeys(node: ScriptNode): boolean {
+  let compressed = true;
+
+  forEachKey(node, (key) => {
+    if (keyMaterialBytes(key.kind) === UNCOMPRESSED_PUBKEY_BYTES) {
+      compressed = false;
+    }
+  });
+
+  return compressed;
 }
 
 export interface DescribedRawOutput {
@@ -528,10 +562,14 @@ export function describeOutput(
   // computeOutputScriptBytes already failed above for combo(), so every kind
   // reaching this switch other than combo is representable here.
   const resolvedNode = node as Exclude<ScriptNode, { readonly kind: "combo" }>;
+  const raw: DescribeOutputResult = {
+    ok: true,
+    description: { type: "raw", scriptPubKeyBytes: scriptBytesResult.value },
+  };
 
   switch (resolvedNode.kind) {
     case "pk":
-      return { ok: true, description: "p2pk" };
+      return usesOnlyCompressedKeys(resolvedNode) ? { ok: true, description: "p2pk" } : raw;
     case "pkh":
       return { ok: true, description: "p2pkh" };
     case "wpkh":
@@ -545,6 +583,6 @@ export function describeOutput(
     case "multi":
     case "raw":
     case "addr":
-      return { ok: true, description: { type: "raw", scriptPubKeyBytes: scriptBytesResult.value } };
+      return raw;
   }
 }

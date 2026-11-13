@@ -4,6 +4,9 @@ const BECH32M_CONST = 0x2bc830a3;
 const GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 const CHECKSUM_LENGTH = 6;
 const MIN_HRP_LENGTH = 1;
+const MAX_ADDRESS_LENGTH = 90;
+const MAX_WITNESS_VERSION = 16;
+const V0_PROGRAM_LENGTHS = new Set([20, 32]);
 
 function polymod(values: readonly number[]): number {
   let checksum = 1;
@@ -87,7 +90,10 @@ export interface DecodedSegwitAddress {
 }
 
 export function bech32Decode(address: string): DecodedSegwitAddress | undefined {
-  if (address !== address.toLowerCase() && address !== address.toUpperCase()) {
+  if (
+    address.length > MAX_ADDRESS_LENGTH ||
+    (address !== address.toLowerCase() && address !== address.toUpperCase())
+  ) {
     return undefined;
   }
 
@@ -121,7 +127,7 @@ export function bech32Decode(address: string): DecodedSegwitAddress | undefined 
   const words = values.slice(0, values.length - CHECKSUM_LENGTH);
   const [witnessVersion, ...programWords] = words;
 
-  if (witnessVersion === undefined) {
+  if (witnessVersion === undefined || witnessVersion > MAX_WITNESS_VERSION) {
     return undefined;
   }
 
@@ -133,7 +139,12 @@ export function bech32Decode(address: string): DecodedSegwitAddress | undefined 
 
   const program = convertBits(programWords, 5, 8, false);
 
-  if (program === undefined || program.length < 2 || program.length > 40) {
+  if (
+    program === undefined ||
+    program.length < 2 ||
+    program.length > 40 ||
+    (witnessVersion === 0 && !V0_PROGRAM_LENGTHS.has(program.length))
+  ) {
     return undefined;
   }
 

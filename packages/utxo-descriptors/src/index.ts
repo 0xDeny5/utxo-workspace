@@ -1,5 +1,5 @@
 export type { ChainParams } from "./chains";
-export { BITCOIN, BITCOIN_TESTNET, LITECOIN, LITECOIN_TESTNET } from "./chains";
+export { BITCOIN, BITCOIN_REGTEST, BITCOIN_TESTNET, LITECOIN, LITECOIN_TESTNET } from "./chains";
 export { checksumCreate, checksumVerify, hasValidCharset } from "./checksum";
 export type { KeyExpressionOptions, KeyExpressionResult } from "./key-expression";
 export { parseKeyExpression } from "./key-expression";

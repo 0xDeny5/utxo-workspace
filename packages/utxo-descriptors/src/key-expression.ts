@@ -147,6 +147,11 @@ function parseTrailingPath(
         seen.add(key);
       }
 
+      // BIP-389: a key expression may contain at most one multipath specifier.
+      if (path.some((element) => element.kind === "multipath")) {
+        return undefined;
+      }
+
       path.push({ kind: "multipath", values: resolved });
 
       continue;
