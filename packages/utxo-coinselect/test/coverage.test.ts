@@ -46,12 +46,16 @@ const makeRequest = (utxos: readonly Utxo[], strategy?: StrategyName): Selection
     targets: SelectionRequest["targets"];
     feeRate: number;
     change: ChangePolicy;
+    seed: number;
     strategy?: StrategyName;
   } = {
     utxos,
     targets: [{ value: 1_000n, weight: outWeight }],
     feeRate: 1,
     change: changePolicy,
+    // Randomized strategies draw a fresh seed when none is given; pin it so
+    // coverage does not depend on the shuffle.
+    seed: 42,
   };
 
   if (strategy) {
@@ -336,8 +340,9 @@ describe("coverage of strategy edge paths", () => {
   it("skips uneconomical optional inputs in deterministic accumulators", () => {
     // High fee rate → tiny UTXO has non-positive effective value and must be skipped
     // (strategies.ts accumulate loop), not selected ahead of a fundable coin.
+    // Smallest-first visits the dust coin before the fundable one.
     const result = selectCoins({
-      ...makeRequest([coin("dust", 1n), coin("fund", 50_000n)], "largest-first"),
+      ...makeRequest([coin("dust", 1n), coin("fund", 50_000n)], "smallest-first"),
       feeRate: 100,
     });
 
