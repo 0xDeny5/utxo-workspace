@@ -1,6 +1,6 @@
 {
   "name": "utxo-coinselect",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Dependency-free, weight-aware Bitcoin UTXO coin selection",
   "license": "MIT",
   "type": "module",
